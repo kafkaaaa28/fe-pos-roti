@@ -1,0 +1,159 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #102A6D;
+  --color-accent:  #FFD21A;
+  --color-cream:   #FFF7D6;
+  --color-mint:    #4DB8FF;
+  --color-dark:    #061238;
+  --color-surface: #0C1F52;
+
+  --font-display: "Playfair Display", serif;
+  --font-body:    "DM Sans", sans-serif;
+}
+
+:root {
+  --primary: #102A6D;
+  --accent:  #FFD21A;
+  --cream:   #FFF7D6;
+  --mint:    #4DB8FF;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: "DM Sans", sans-serif;
+  background: #061238;
+  color: #fff;
+  margin: 0;
+}
+
+.font-display { font-family: "Playfair Display", serif; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #0C1F52; }
+::-webkit-scrollbar-thumb { background: #FFD21A; border-radius: 3px; }
+html, body, #root {
+  min-height: 100%;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+img, svg, video, canvas {
+  max-width: 100%;
+}
+
+button, a, input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.responsive-card-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+/* Touch-friendly action buttons for mobile tables */
+.touch-action-btn {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.85rem;
+  transition: transform 160ms ease, background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.touch-action-btn:active {
+  transform: scale(0.95);
+}
+
+.touch-action-btn svg {
+  width: 18px !important;
+  height: 18px !important;
+  stroke-width: 2.25;
+}
+
+@media (max-width: 640px) {
+  .touch-action-btn {
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  .touch-action-btn svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+}
+
+
+/* Beard Papa's contrast tuning */
+.dashboard-chart-wrap,
+.responsive-scroll-x {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dashboard-chart-wrap > * {
+  min-width: 0;
+  width: 100%;
+}
+
+.touch-action-btn {
+  border: 1px solid rgba(255, 210, 26, 0.22) !important;
+  background: rgba(255, 210, 26, 0.13) !important;
+  color: #FFD21A !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+}
+
+.touch-action-btn:hover {
+  border-color: rgba(255, 210, 26, 0.65) !important;
+  background: #FFD21A !important;
+  color: #061238 !important;
+}
+
+.touch-action-btn svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+.touch-action-btn.bg-red-900\/20,
+.touch-action-btn.text-red-400 {
+  border-color: rgba(248, 113, 113, 0.35) !important;
+  background: rgba(248, 113, 113, 0.16) !important;
+  color: #FCA5A5 !important;
+}
+
+.touch-action-btn.bg-red-900\/20:hover,
+.touch-action-btn.text-red-400:hover {
+  background: #F87171 !important;
+  color: #061238 !important;
+}
+
+.touch-action-btn.bg-amber-900\/20,
+.touch-action-btn.text-amber-400 {
+  border-color: rgba(251, 191, 36, 0.35) !important;
+  background: rgba(251, 191, 36, 0.16) !important;
+  color: #FCD34D !important;
+}
+
+.touch-action-btn.bg-amber-900\/20:hover,
+.touch-action-btn.text-amber-400:hover {
+  background: #FCD34D !important;
+  color: #061238 !important;
+}
+
+.icon-contrast {
+  color: #FFD21A;
+  filter: drop-shadow(0 0 10px rgba(255, 210, 26, 0.22));
+}
+
+@media (max-width: 640px) {
+  .dashboard-chart-wrap {
+    overflow-x: hidden;
+  }
+}
