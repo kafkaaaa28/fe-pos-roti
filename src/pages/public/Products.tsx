@@ -3,14 +3,13 @@ import { motion } from "framer-motion";
 import { Search, ShoppingCart, Sparkles } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  PUBLIC_IMAGE_PRELOADS,
   PUBLIC_PRODUCT_CATEGORIES,
-  PUBLIC_PRODUCTS,
   type PublicProduct,
   type PublicProductCategory,
 } from "../../data/publicProducts";
 import { preloadImages } from "../../utils/imageCache";
 import { getPublicProducts } from "../../services/product.service";
+import { getApiErrorMessage } from "../../services/error";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCart } from "../../contexts/CartContext";
 
@@ -19,7 +18,9 @@ type ActiveCategory = "all" | PublicProductCategory;
 export default function Products() {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<ActiveCategory>("all");
-  const [products, setProducts] = useState<PublicProduct[]>(PUBLIC_PRODUCTS);
+  const [products, setProducts] = useState<PublicProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -27,11 +28,13 @@ export default function Products() {
   const { addItem } = useCart();
 
   useEffect(() => {
-    preloadImages(PUBLIC_IMAGE_PRELOADS);
-    getPublicProducts().then((items) => {
-      setProducts(items);
-      preloadImages(items.map((item) => item.image));
-    });
+    getPublicProducts()
+      .then((items) => {
+        setProducts(items);
+        preloadImages(items.map((item) => item.image).filter((url): url is string => Boolean(url)));
+      })
+      .catch((err) => setError(getApiErrorMessage(err, "Gagal memuat produk dari backend.")))
+      .finally(() => setLoading(false));
   }, []);
 
   const filteredProducts = useMemo(() => {
@@ -163,7 +166,15 @@ export default function Products() {
           </div>
         </div>
 
-        {activeCategory === "all" ? (
+        {loading ? (
+          <div className="mt-12 rounded-2xl border border-white/10 bg-surface p-8 text-center text-white/45">
+            Memuat produk dari backend...
+          </div>
+        ) : error ? (
+          <div className="mt-12 rounded-2xl border border-red-400/20 bg-red-500/10 p-8 text-center text-red-100">
+            {error}
+          </div>
+        ) : activeCategory === "all" ? (
           <div className="space-y-16">
             {groupedProducts.map((section) => (
               <section key={section.id}>
@@ -183,9 +194,9 @@ export default function Products() {
           <ProductGrid products={filteredProducts} onAddToCart={handleAddToCart} />
         )}
 
-        {filteredProducts.length === 0 && (
+        {!loading && !error && filteredProducts.length === 0 && (
           <div className="mt-12 rounded-2xl border border-white/10 bg-surface p-8 text-center text-white/45">
-            Produk tidak ditemukan. Coba gunakan kategori atau kata kunci lain.
+            Belum ada data produk dari backend.
           </div>
         )}
       </div>

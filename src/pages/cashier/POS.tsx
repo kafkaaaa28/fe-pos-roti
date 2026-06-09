@@ -25,12 +25,12 @@ import Toast from "../../components/common/Toast";
 import { useAuth } from "../../contexts/AuthContext";
 import {
   PUBLIC_PRODUCT_CATEGORIES,
-  PUBLIC_PRODUCTS,
   type PublicProduct,
   type PublicProductCategory,
 } from "../../data/publicProducts";
 import { getPublicProducts } from "../../services/product.service";
 import { createOfflineTransaction } from "../../services/transaction.service";
+import { getApiErrorMessage } from "../../services/error";
 
 const formatCurrency = (value: number) => `Rp ${value.toLocaleString("id-ID")}`;
 
@@ -491,7 +491,9 @@ function CartPanel({
 export default function POS() {
   const { user } = useAuth();
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [menuProducts, setMenuProducts] = useState<PublicProduct[]>(PUBLIC_PRODUCTS);
+  const [menuProducts, setMenuProducts] = useState<PublicProduct[]>([]);
+  const [menuLoading, setMenuLoading] = useState(true);
+  const [menuError, setMenuError] = useState("");
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<ActiveCategory>("all");
   const [cashierName, setCashierName] = useState(user?.name || "");
@@ -504,6 +506,7 @@ export default function POS() {
   const [cashReceived, setCashReceived] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [toast, setToast] = useState({ open: false, tone: "info" as "success" | "error" | "info", title: "", message: "" });
@@ -524,7 +527,10 @@ export default function POS() {
   const changeAmount = Math.max(0, paidAmount - total);
 
   useEffect(() => {
-    getPublicProducts().then(setMenuProducts);
+    getPublicProducts()
+      .then(setMenuProducts)
+      .catch((error) => setMenuError(getApiErrorMessage(error, "Gagal memuat produk POS dari backend.")))
+      .finally(() => setMenuLoading(false));
   }, []);
 
   const showToast = (tone: "success" | "error" | "info", title: string, message: string) => {
@@ -558,12 +564,13 @@ export default function POS() {
   };
 
   const completePayment = async () => {
+    if (submitting) return;
     if (paymentMethod === "CASH" && paidAmount < total) {
       showToast("error", "Uang diterima kurang", "Nominal cash harus sama atau lebih besar dari total belanja.");
       return;
     }
 
-    let completedReceipt: ReceiptData = {
+    const baseReceipt: ReceiptData = {
       invoice: buildInvoiceNumber(),
       date: new Date().toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }),
       cashier: cashierName.trim(),
@@ -579,6 +586,7 @@ export default function POS() {
       change: paymentMethod === "CASH" ? changeAmount : 0,
     };
 
+    setSubmitting(true);
     try {
       const transaction = await createOfflineTransaction({
         items: cart.map((item) => ({ productId: item.id, quantity: item.qty })),
@@ -592,8 +600,8 @@ export default function POS() {
         referenceNumber: paymentMethod === "CASH" ? null : buildInvoiceNumber(),
       });
 
-      completedReceipt = {
-        ...completedReceipt,
+      const completedReceipt: ReceiptData = {
+        ...baseReceipt,
         invoice: transaction.receiptNumber || transaction.invoiceNumber || transaction.id,
         date: new Date(transaction.createdAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }),
         items: transaction.items.map((item) => ({
@@ -605,20 +613,22 @@ export default function POS() {
           desc: item.name,
           category: "shell",
           categoryLabel: "Menu",
-          qty: item.qty,
+          qty: item.quantity,
         })),
         total: transaction.total,
       };
-    } catch {
-      // Fallback lokal tetap dipakai supaya POS tidak berhenti jika BE belum aktif.
-    }
 
-    setReceipt(completedReceipt);
-    setCart([]);
-    setPaymentOpen(false);
-    setReceiptOpen(true);
-    setCashReceived("");
-    showToast("success", "Pembayaran berhasil", "Struk pembayaran sudah dibuat.");
+      setReceipt(completedReceipt);
+      setCart([]);
+      setPaymentOpen(false);
+      setReceiptOpen(true);
+      setCashReceived("");
+      showToast("success", "Pembayaran berhasil", "Transaksi offline berhasil dibuat dari backend.");
+    } catch (error) {
+      showToast("error", "Transaksi offline gagal", getApiErrorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const sendReceiptToWhatsApp = () => {
@@ -664,6 +674,13 @@ export default function POS() {
               </div></div>
             </div>
 
+            {menuLoading ? (
+              <div className="rounded-2xl border border-white/10 bg-surface p-8 text-center text-sm text-white/45">Memuat produk POS dari backend...</div>
+            ) : menuError ? (
+              <div className="rounded-2xl border border-red-400/20 bg-red-500/10 p-8 text-center text-sm text-red-100">{menuError}</div>
+            ) : products.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-white/10 bg-surface p-8 text-center text-sm text-white/45">Belum ada data produk dari backend.</div>
+            ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-4">
               {products.map((product, index) => (
                 <motion.button key={product.id} type="button" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.025 }} whileHover={{ y: -4 }} whileTap={{ scale: 0.97 }} onClick={() => addProduct(product)} className="group min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-surface text-left shadow-xl shadow-black/15 transition-all hover:border-accent/60 hover:shadow-accent/10">
@@ -672,6 +689,7 @@ export default function POS() {
                 </motion.button>
               ))}
             </div>
+            )}
           </section>
 
           <aside className="hidden h-dvh min-w-0 border-l-4 border-accent/80 bg-surface xl:block"><div className="flex h-dvh min-h-0 flex-col overflow-hidden"><CartPanel cart={cart}
@@ -724,8 +742,8 @@ export default function POS() {
           <div className="rounded-2xl border border-white/10 bg-dark/45 p-4"><div className="flex justify-between gap-4 text-sm text-white/55"><span>Total Pembayaran</span><span>{totalQty} item</span></div><p className="mt-2 text-3xl font-bold text-accent">{formatCurrency(total)}</p></div>
           <div><p className="mb-3 text-sm font-semibold text-white">Pilih Metode Pembayaran</p><div className="grid gap-3 sm:grid-cols-3">{paymentOptions.map((option) => { const Icon = option.icon; const selected = paymentMethod === option.id; return <button key={option.id} type="button" onClick={() => setPaymentMethod(option.id)} className={`rounded-2xl border p-4 text-left transition-all active:scale-95 ${selected ? "border-accent bg-accent text-dark shadow-lg shadow-accent/20" : "border-white/10 bg-dark/45 text-white hover:border-accent/60"}`}><Icon size={22} className={selected ? "text-dark" : "text-accent"} /><p className="mt-3 font-bold">{option.label}</p><p className={`mt-1 text-xs leading-5 ${selected ? "text-dark/65" : "text-white/40"}`}>{option.desc}</p></button>; })}</div></div>
           {paymentMethod === "CASH" && <div className="rounded-2xl border border-white/10 bg-dark/45 p-4"><label className="block"><span className="mb-2 block text-sm font-semibold text-white">Uang Diterima</span><input value={cashReceived} onChange={(event) => setCashReceived(event.target.value.replace(/[^0-9]/g, ""))} placeholder="Masukkan nominal cash" inputMode="numeric" className="min-h-12 w-full rounded-xl border border-white/10 bg-surface px-4 py-3 text-white outline-none placeholder:text-white/25 focus:border-accent/60" /></label><div className="mt-4 grid gap-3 sm:grid-cols-2"><div className="rounded-xl bg-surface p-3"><p className="text-xs text-white/40">Total</p><p className="mt-1 font-bold text-white">{formatCurrency(total)}</p></div><div className="rounded-xl bg-surface p-3"><p className="text-xs text-white/40">Kembalian</p><p className="mt-1 font-bold text-accent">{formatCurrency(changeAmount)}</p></div></div></div>}
-          {paymentMethod !== "CASH" && <div className="rounded-2xl border border-mint/20 bg-mint/10 p-4 text-sm text-white/65">Untuk dummy FE, pembayaran {getPaymentLabel(paymentMethod)} dianggap lunas ketika kasir menekan tombol konfirmasi. Nanti saat backend aktif, status bisa divalidasi dari payment gateway atau bukti transfer.</div>}
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" onClick={() => setPaymentOpen(false)} className="rounded-xl border border-white/10 px-5 py-3 text-sm font-bold text-white/65 transition-colors hover:border-white/25 hover:text-white">Batal</button><button type="button" onClick={completePayment} className="rounded-xl bg-accent px-5 py-3 text-sm font-bold text-dark shadow-lg shadow-accent/20 transition-colors hover:bg-cream">Konfirmasi Pembayaran</button></div>
+          {paymentMethod !== "CASH" && <div className="rounded-2xl border border-mint/20 bg-mint/10 p-4 text-sm text-white/65">Pembayaran {getPaymentLabel(paymentMethod)} akan dikirim ke backend sebagai transaksi offline. Status berhasil hanya ditampilkan setelah backend mengembalikan transaksi.</div>}
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" onClick={() => setPaymentOpen(false)} disabled={submitting} className="rounded-xl border border-white/10 px-5 py-3 text-sm font-bold text-white/65 transition-colors hover:border-white/25 hover:text-white">Batal</button><button type="button" onClick={completePayment} disabled={submitting} className="rounded-xl bg-accent px-5 py-3 text-sm font-bold text-dark shadow-lg shadow-accent/20 transition-colors hover:bg-cream disabled:cursor-not-allowed disabled:opacity-60">{submitting ? "Memproses..." : "Konfirmasi Pembayaran"}</button></div>
         </div>
       </Modal>
 

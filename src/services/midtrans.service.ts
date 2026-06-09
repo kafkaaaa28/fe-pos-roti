@@ -1,0 +1,78 @@
+import api from "./api";
+
+export type MidtransConfig = {
+  clientKey: string;
+  isProduction: boolean;
+  snapUrl: string;
+};
+
+export type MidtransPayCallbacks = {
+  onSuccess?: (result: unknown) => void;
+  onPending?: (result: unknown) => void;
+  onError?: (result: unknown) => void;
+  onClose?: () => void;
+};
+
+declare global {
+  interface Window {
+    snap?: {
+      pay: (token: string, callbacks?: MidtransPayCallbacks) => void;
+    };
+  }
+}
+
+let configPromise: Promise<MidtransConfig> | null = null;
+let scriptPromise: Promise<void> | null = null;
+let loadedScriptUrl = "";
+
+export async function getMidtransConfig() {
+  if (!configPromise) {
+    configPromise = api.get<MidtransConfig>("/payments/midtrans/config").then((response) => response.data);
+  }
+
+  return configPromise;
+}
+
+export async function loadMidtransSnap() {
+  const config = await getMidtransConfig();
+
+  if (window.snap && loadedScriptUrl === config.snapUrl) {
+    return config;
+  }
+
+  if (!scriptPromise || loadedScriptUrl !== config.snapUrl) {
+    loadedScriptUrl = config.snapUrl;
+    scriptPromise = new Promise<void>((resolve, reject) => {
+      const existing = document.querySelector<HTMLScriptElement>(`script[data-midtrans-snap="true"][src="${config.snapUrl}"]`);
+
+      if (existing) {
+        existing.addEventListener("load", () => resolve(), { once: true });
+        existing.addEventListener("error", () => reject(new Error("Gagal memuat script Midtrans Snap.")), { once: true });
+        if (window.snap) resolve();
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = config.snapUrl;
+      script.async = true;
+      script.dataset.midtransSnap = "true";
+      script.setAttribute("data-client-key", config.clientKey);
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Gagal memuat script Midtrans Snap."));
+      document.body.appendChild(script);
+    });
+  }
+
+  await scriptPromise;
+
+  if (!window.snap) {
+    throw new Error("Midtrans Snap belum tersedia setelah script dimuat.");
+  }
+
+  return config;
+}
+
+export async function payWithMidtransSnap(token: string, callbacks: MidtransPayCallbacks) {
+  await loadMidtransSnap();
+  window.snap?.pay(token, callbacks);
+}

@@ -4,7 +4,8 @@ import { Clock3, PackageCheck, ReceiptText, Utensils } from 'lucide-react';
 import CustomerShell from '../../components/customer/CustomerShell';
 import { formatRupiah } from '../../utils/formatter';
 import type { OnlineOrder, OnlineOrderStatus } from '../../types/orders';
-import { fetchCustomerOrders, getCustomerOrders, getFulfillmentLabel, getPaymentLabel, getStatusLabel } from '../../services/orderStore';
+import { fetchCustomerOrders, getFulfillmentLabel, getPaymentLabel, getStatusLabel } from '../../services/orderStore';
+import { getApiErrorMessage } from '../../services/error';
 
 const statusColor: Record<OnlineOrderStatus, string> = {
   PENDING: 'border-white/10 bg-white/10 text-white/65',
@@ -59,22 +60,15 @@ function TrackingSteps({ order }: { order: OnlineOrder }) {
 }
 
 export default function Orders() {
-  const [orders, setOrders] = useState<OnlineOrder[]>(() => getCustomerOrders());
+  const [orders, setOrders] = useState<OnlineOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    const sync = () =>
-      fetchCustomerOrders()
-        .then(setOrders)
-        .catch(() => setOrders(getCustomerOrders()));
-    sync();
-    window.addEventListener('beard-papas-orders-updated', sync as EventListener);
-    window.addEventListener('papa-bread-orders-updated', sync as EventListener);
-    window.addEventListener('storage', sync);
-    return () => {
-      window.removeEventListener('beard-papas-orders-updated', sync as EventListener);
-      window.removeEventListener('papa-bread-orders-updated', sync as EventListener);
-      window.removeEventListener('storage', sync);
-    };
+    fetchCustomerOrders()
+      .then(setOrders)
+      .catch((err) => setError(getApiErrorMessage(err, 'Gagal memuat transaksi customer.')))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
@@ -86,7 +80,11 @@ export default function Orders() {
           <p className="mt-2 text-sm text-white/45">Pantau antrian dan status pesanan. Ketika status siap, nama dan nomor antrian akan dipanggil penyaji.</p>
         </div>
 
-        {orders.length === 0 ? (
+        {loading ? (
+          <div className="rounded-3xl border border-white/10 bg-surface p-8 text-center text-sm text-white/45">Memuat transaksi dari backend...</div>
+        ) : error ? (
+          <div className="rounded-3xl border border-red-400/20 bg-red-500/10 p-8 text-center text-sm text-red-100">{error}</div>
+        ) : orders.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-white/10 bg-surface p-8 text-center">
             <PackageCheck className="mx-auto text-accent" size={36} />
             <p className="mt-4 font-bold text-white">Belum ada pesanan</p>

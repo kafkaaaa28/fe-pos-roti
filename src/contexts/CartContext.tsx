@@ -81,7 +81,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const { data } = await api.get<BackendCart>("/cart");
       setItems(mapBackendCart(data));
     } catch {
-      // fallback local cart tetap dipakai agar FE bisa jalan saat BE belum aktif
+      // keep local cart state until the backend cart endpoint responds again
     }
   };
 

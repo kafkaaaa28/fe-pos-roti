@@ -1,64 +1,5 @@
 import api from "./api";
-import { mockStaffDashboardByPeriod } from "../data/mockStaff";
 import type { StaffDashboardData, StaffPeriod } from "../types/staff";
-
-const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
-
-type BackendDashboardSummary = {
-  summary?: {
-    totalProduction?: number;
-  };
-  lowStock?: {
-    total?: number;
-    items?: Array<{
-      id?: string;
-      name?: string;
-      stock?: number;
-      minStock?: number;
-      unit?: string;
-      stockStatus?: "AMAN" | "MENIPIS" | "HABIS";
-    }>;
-  };
-};
-
-function adaptBackendSummary(payload: BackendDashboardSummary, period: StaffPeriod): StaffDashboardData {
-  const fallback = mockStaffDashboardByPeriod[period];
-  const lowItems = payload.lowStock?.items;
-
-  return {
-    ...fallback,
-    summary: {
-      ...fallback.summary,
-      todayProduction: Number(payload.summary?.totalProduction ?? fallback.summary.todayProduction),
-      materialAlerts: Number(payload.lowStock?.total ?? fallback.summary.materialAlerts),
-    },
-    materialAlerts: lowItems?.length
-      ? lowItems.map((item) => ({
-          id: item.id ?? item.name ?? "MAT",
-          name: item.name ?? "Bahan Baku",
-          stock: Number(item.stock ?? 0),
-          minStock: Number(item.minStock ?? 0),
-          unit: item.unit ?? "unit",
-          status: item.stockStatus ?? "MENIPIS",
-          suggestedAction: "Cek stok dan lakukan restock bila diperlukan.",
-        }))
-      : fallback.materialAlerts,
-  };
-}
-
-export async function getStaffDashboard(period: StaffPeriod): Promise<StaffDashboardData> {
-  try {
-    const response = await api.get<BackendDashboardSummary>("/dashboard/staff", { params: { period } });
-    return adaptBackendSummary(response.data, period);
-  } catch {
-    await wait(420);
-    return mockStaffDashboardByPeriod[period];
-  }
-}
-
-// Staff operational pages use the same backend contracts as Manager for master data,
-// but the UI keeps Staff-specific responsibilities: materials, productions, recipes,
-// inventory, and stock movement.
 import {
   createManagerMaterial,
   deleteManagerMaterial,
@@ -77,6 +18,80 @@ import type {
   ServiceResponse,
   StockMovementType,
 } from "../types/manager";
+
+type BackendDashboardSummary = {
+  summary?: {
+    totalProduction?: number;
+    activeRecipes?: number;
+    stockMovementsToday?: number;
+    pendingProduction?: number;
+    completedProduction?: number;
+  };
+  lowStock?: {
+    total?: number;
+    items?: Array<{
+      id?: string;
+      name?: string;
+      stock?: number;
+      minStock?: number;
+      unit?: string;
+      stockStatus?: "AMAN" | "MENIPIS" | "HABIS";
+    }>;
+  };
+};
+
+function emptyStaffDashboard(period: StaffPeriod): StaffDashboardData {
+  return {
+    period,
+    summary: {
+      todayProduction: 0,
+      activeRecipes: 0,
+      materialAlerts: 0,
+      stockMovementsToday: 0,
+      pendingProduction: 0,
+      completedProduction: 0,
+    },
+    productionTrend: [],
+    productionByProduct: [],
+    recentProductions: [],
+    materialAlerts: [],
+    recipeOverviews: [],
+    stockMovements: [],
+    productionQueue: [],
+  };
+}
+
+function adaptBackendSummary(payload: BackendDashboardSummary, period: StaffPeriod): StaffDashboardData {
+  const empty = emptyStaffDashboard(period);
+  const lowItems = payload.lowStock?.items ?? [];
+
+  return {
+    ...empty,
+    summary: {
+      ...empty.summary,
+      todayProduction: Number(payload.summary?.totalProduction ?? 0),
+      activeRecipes: Number(payload.summary?.activeRecipes ?? 0),
+      stockMovementsToday: Number(payload.summary?.stockMovementsToday ?? 0),
+      pendingProduction: Number(payload.summary?.pendingProduction ?? 0),
+      completedProduction: Number(payload.summary?.completedProduction ?? 0),
+      materialAlerts: Number(payload.lowStock?.total ?? lowItems.length),
+    },
+    materialAlerts: lowItems.map((item) => ({
+      id: item.id ?? item.name ?? "MAT",
+      name: item.name ?? "Bahan Baku",
+      stock: Number(item.stock ?? 0),
+      minStock: Number(item.minStock ?? 0),
+      unit: item.unit ?? "unit",
+      status: item.stockStatus ?? "MENIPIS",
+      suggestedAction: "Cek stok dan lakukan restock bila diperlukan.",
+    })),
+  };
+}
+
+export async function getStaffDashboard(period: StaffPeriod): Promise<StaffDashboardData> {
+  const response = await api.get<BackendDashboardSummary>("/dashboard/staff", { params: { period } });
+  return adaptBackendSummary(response.data, period);
+}
 
 export const listStaffProducts = listManagerProducts;
 export const listStaffMaterials = listManagerMaterials;

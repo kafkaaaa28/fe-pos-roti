@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Banknote, CreditCard, MapPin, QrCode, ShoppingBag, StickyNote, User, Phone } from 'lucide-react';
+import { CreditCard, MapPin, QrCode, ShoppingBag, StickyNote, User, Phone } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import CustomerShell from '../../components/customer/CustomerShell';
 import Toast from '../../components/common/Toast';
@@ -9,12 +9,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { formatRupiah } from '../../utils/formatter';
 import { createOnlineOrder } from '../../services/orderStore';
+import { payWithMidtransSnap } from '../../services/midtrans.service';
+import { getApiErrorMessage } from '../../services/error';
 import type { OrderFulfillmentType, OrderPaymentMethod } from '../../types/orders';
 
-const paymentOptions: { id: OrderPaymentMethod; label: string; desc: string; icon: typeof Banknote }[] = [
-  { id: 'CASH', label: 'Cash', desc: 'Bayar saat ambil / di kasir.', icon: Banknote },
-  { id: 'QRIS', label: 'QRIS', desc: 'Dummy pembayaran QRIS.', icon: QrCode },
-  { id: 'TRANSFER', label: 'Transfer', desc: 'Dummy transfer bank/e-wallet.', icon: CreditCard },
+const paymentOptions: { id: OrderPaymentMethod; label: string; desc: string; icon: typeof QrCode }[] = [
+  { id: 'QRIS', label: 'QRIS', desc: 'Bayar melalui Midtrans Snap QRIS.', icon: QrCode },
+  { id: 'TRANSFER', label: 'Transfer', desc: 'Bayar melalui Midtrans Snap bank transfer.', icon: CreditCard },
 ];
 
 function readSavedProfile() {
@@ -49,8 +50,8 @@ export default function Checkout() {
 
   const totalQty = useMemo(() => items.reduce((sum, item) => sum + item.qty, 0), [items]);
 
-  const showToast = (title: string, message: string) => {
-    setToast({ open: true, tone: 'error', title, message });
+  const showToast = (title: string, message: string, tone: 'success' | 'error' | 'info' = 'error') => {
+    setToast({ open: true, tone, title, message });
     window.setTimeout(() => setToast((current) => ({ ...current, open: false })), 2400);
   };
 
@@ -79,11 +80,31 @@ export default function Checkout() {
           price: item.price,
         })),
       });
-      console.log(order);
+      if (!order.snapToken) {
+        showToast('Token pembayaran tidak ditemukan', 'Token pembayaran Midtrans tidak ditemukan dari response backend.');
+        return;
+      }
+
       clear();
+      setSuccessOpen(false);
       setCreatedOrderId(order.invoiceNumber || order.id);
       setCreatedQueueNumber(order.queueNumber || order.id);
-      setSuccessOpen(true);
+      await payWithMidtransSnap(order.snapToken, {
+        onSuccess() {
+          navigate('/customer/orders');
+        },
+        onPending() {
+          navigate('/customer/orders');
+        },
+        onError() {
+          showToast('Pembayaran gagal', 'Midtrans mengembalikan status error untuk pembayaran ini.');
+        },
+        onClose() {
+          showToast('Pembayaran ditutup', 'Popup pembayaran ditutup sebelum selesai. Kamu bisa cek status pesanan di halaman tracking.', 'info');
+        },
+      });
+    } catch (error) {
+      showToast('Checkout gagal', getApiErrorMessage(error));
     } finally {
       setSubmitting(false);
     }

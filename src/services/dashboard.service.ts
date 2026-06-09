@@ -1,8 +1,5 @@
 import api from "./api";
-import { mockDashboardByPeriod } from "../data/mockDashboard";
 import type { DashboardData, DashboardPeriod } from "../types/dashboard";
-
-const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 type BackendDashboardSummary = {
   generatedAt?: string;
@@ -12,14 +9,13 @@ type BackendDashboardSummary = {
     totalProductsSold?: number;
     monthlyRevenue?: number;
     totalTransactions?: number;
+    customerCount?: number;
   };
   bestSellingProduct?: {
     productId?: string;
     name?: string;
-    image?: string;
     quantitySold?: number;
     revenue?: number;
-    stockStatus?: "AMAN" | "MENIPIS" | "HABIS";
   } | null;
   bestSellingProducts?: Array<{
     productId?: string;
@@ -27,7 +23,6 @@ type BackendDashboardSummary = {
     name?: string;
     quantitySold?: number;
     revenue?: number;
-    stockStatus?: "AMAN" | "MENIPIS" | "HABIS";
   }>;
   lowStock?: {
     total?: number;
@@ -43,8 +38,36 @@ type BackendDashboardSummary = {
   };
 };
 
-function adaptBackendSummary(payload: BackendDashboardSummary, period: DashboardPeriod): DashboardData {
-  const fallback = mockDashboardByPeriod[period];
+function emptyDashboard(): DashboardData {
+  return {
+    generatedAt: new Date().toISOString(),
+    summary: {
+      totalSales: 0,
+      totalProduction: 0,
+      totalSoldProducts: 0,
+      transactionCount: 0,
+      customerCount: 0,
+      bestSellingProduct: "Belum ada data",
+      monthlyRevenue: 0,
+      lowStockCount: 0,
+    },
+    trends: {
+      totalSales: { value: 0, label: "Belum ada data" },
+      totalProduction: { value: 0, label: "Belum ada data" },
+      totalSoldProducts: { value: 0, label: "Belum ada data" },
+      transactionCount: { value: 0, label: "Belum ada data" },
+    },
+    salesChart: [],
+    productionChart: [],
+    bestSellingProducts: [],
+    lowStocks: [],
+    recentTransactions: [],
+    recentProductions: [],
+  };
+}
+
+function adaptBackendSummary(payload: BackendDashboardSummary): DashboardData {
+  const base = emptyDashboard();
   const summary = payload.summary ?? {};
   const bestSellingProducts = payload.bestSellingProducts?.length
     ? payload.bestSellingProducts.map((item, index) => ({
@@ -55,38 +78,39 @@ function adaptBackendSummary(payload: BackendDashboardSummary, period: Dashboard
         percentage: index === 0 ? 100 : Math.max(10, 100 - index * 18),
       }))
     : payload.bestSellingProduct
-      ? [{
-          id: payload.bestSellingProduct.productId ?? "BEST-001",
-          name: payload.bestSellingProduct.name ?? "Produk Terlaris",
-          sold: Number(payload.bestSellingProduct.quantitySold ?? 0),
-          revenue: Number(payload.bestSellingProduct.revenue ?? 0),
-          percentage: 100,
-        }]
-      : fallback.bestSellingProducts;
+      ? [
+          {
+            id: payload.bestSellingProduct.productId ?? "BEST-001",
+            name: payload.bestSellingProduct.name ?? "Produk Terlaris",
+            sold: Number(payload.bestSellingProduct.quantitySold ?? 0),
+            revenue: Number(payload.bestSellingProduct.revenue ?? 0),
+            percentage: 100,
+          },
+        ]
+      : [];
 
-  const lowStocks = payload.lowStock?.items?.length
-    ? payload.lowStock.items.map((item) => ({
-        id: item.id ?? item.name ?? "LOW-STOCK",
-        name: item.name ?? "Stok Menipis",
-        type: item.type === "PRODUCT" ? "Produk Jadi" as const : "Bahan Baku" as const,
-        stock: Number(item.stock ?? 0),
-        minStock: Number(item.minStock ?? 0),
-        unit: item.unit ?? (item.type === "PRODUCT" ? "pcs" : "unit"),
-        status: item.stockStatus ?? "MENIPIS" as const,
-      }))
-    : fallback.lowStocks;
+  const lowStocks = (payload.lowStock?.items ?? []).map((item) => ({
+    id: item.id ?? item.name ?? "LOW-STOCK",
+    name: item.name ?? "Stok Menipis",
+    type: item.type === "PRODUCT" ? ("Produk Jadi" as const) : ("Bahan Baku" as const),
+    stock: Number(item.stock ?? 0),
+    minStock: Number(item.minStock ?? 0),
+    unit: item.unit ?? (item.type === "PRODUCT" ? "pcs" : "unit"),
+    status: item.stockStatus ?? ("MENIPIS" as const),
+  }));
 
   return {
-    ...fallback,
-    generatedAt: payload.generatedAt ?? fallback.generatedAt,
+    ...base,
+    generatedAt: payload.generatedAt ?? base.generatedAt,
     summary: {
-      ...fallback.summary,
-      totalSales: Number(summary.totalSales ?? fallback.summary.totalSales),
-      totalProduction: Number(summary.totalProduction ?? fallback.summary.totalProduction),
-      totalSoldProducts: Number(summary.totalProductsSold ?? fallback.summary.totalSoldProducts),
-      transactionCount: Number(summary.totalTransactions ?? fallback.summary.transactionCount),
-      monthlyRevenue: Number(summary.monthlyRevenue ?? fallback.summary.monthlyRevenue),
-      bestSellingProduct: bestSellingProducts[0]?.name ?? fallback.summary.bestSellingProduct,
+      ...base.summary,
+      totalSales: Number(summary.totalSales ?? 0),
+      totalProduction: Number(summary.totalProduction ?? 0),
+      totalSoldProducts: Number(summary.totalProductsSold ?? 0),
+      transactionCount: Number(summary.totalTransactions ?? 0),
+      customerCount: Number(summary.customerCount ?? 0),
+      monthlyRevenue: Number(summary.monthlyRevenue ?? 0),
+      bestSellingProduct: bestSellingProducts[0]?.name ?? "Belum ada data",
       lowStockCount: Number(payload.lowStock?.total ?? lowStocks.length),
     },
     bestSellingProducts,
@@ -94,31 +118,25 @@ function adaptBackendSummary(payload: BackendDashboardSummary, period: Dashboard
   };
 }
 
-const normalizeDashboardResponse = (payload: unknown, period: DashboardPeriod): DashboardData => {
+const normalizeDashboardResponse = (payload: unknown): DashboardData => {
   const response = payload as { data?: DashboardData | BackendDashboardSummary } | DashboardData | BackendDashboardSummary;
   const data = "data" in response && response.data ? response.data : response;
 
   if (data && typeof data === "object" && "summary" in data && "lowStock" in data) {
-    return adaptBackendSummary(data as BackendDashboardSummary, period);
+    return adaptBackendSummary(data as BackendDashboardSummary);
   }
 
-  return (data as DashboardData) || mockDashboardByPeriod[period];
+  return (data as DashboardData) || emptyDashboard();
 };
 
 export async function getManagerDashboard(period: DashboardPeriod): Promise<DashboardData> {
-  try {
-    const response = await api.get("/dashboard/manager", { params: { period } });
-    return normalizeDashboardResponse(response.data, period);
-  } catch {
-    await wait(450);
-    return mockDashboardByPeriod[period];
-  }
+  const response = await api.get("/dashboard/manager", { params: { period } });
+  return normalizeDashboardResponse(response.data);
 }
 
 export async function exportManagerDashboard(period: DashboardPeriod): Promise<{ fileName: string; message: string }> {
-  await wait(250);
   return {
     fileName: `laporan-dashboard-${period}.xlsx`,
-    message: "Export FE disiapkan dari data dashboard aktif. Endpoint BE export dapat ditambahkan nanti bila diperlukan.",
+    message: "Export dibuat dari data dashboard backend yang sedang aktif.",
   };
 }

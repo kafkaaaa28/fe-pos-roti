@@ -1,5 +1,4 @@
 import api from "./api";
-import { mockReportsByPeriod } from "../data/mockReports";
 import type { DashboardPeriod, StockStatus, TransactionStatus, TransactionType } from "../types/dashboard";
 import type {
   ManagerReportsData,
@@ -11,8 +10,6 @@ import type {
   TransactionReportItem,
 } from "../types/reports";
 import { formatNumber, formatRupiah } from "../utils/formatter";
-
-const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 type PaginationResponse<T> = {
   items?: T[];
@@ -222,26 +219,16 @@ async function loadBackendReports(period: DashboardPeriod): Promise<ManagerRepor
 }
 
 export async function getManagerReports(period: DashboardPeriod): Promise<ManagerReportsData> {
-  try {
-    return await loadBackendReports(period);
-  } catch {
-    await wait(450);
-    return mockReportsByPeriod[period];
-  }
+  return loadBackendReports(period);
 }
 
 export async function getManagerReportByType(period: DashboardPeriod, reportType: ReportType): Promise<ManagerReportsData> {
-  try {
-    const endpointMap: Record<ReportType, string> = {
-      sales: "/reports/sales",
-      production: "/reports/productions",
-      stock: "/reports/inventory",
-      transaction: "/reports/transactions",
-    };
-    await api.get(endpointMap[reportType], { params: { period, limit: 100 } });
-    return await loadBackendReports(period);
-  } catch {
-    await wait(350);
-    return mockReportsByPeriod[period];
-  }
+  const endpointMap: Record<ReportType, string> = {
+    sales: "/reports/sales",
+    production: "/reports/productions",
+    stock: "/reports/inventory",
+    transaction: "/reports/transactions",
+  };
+  await api.get(endpointMap[reportType], { params: { period, limit: 100 } });
+  return loadBackendReports(period);
 }

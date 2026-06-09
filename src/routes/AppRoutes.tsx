@@ -17,8 +17,10 @@ import Checkout from "../pages/customer/Checkout";
 import CustomerDashboard from "../pages/customer/Dashboard";
 import CustomerOrders from "../pages/customer/Orders";
 import Profile from "../pages/customer/Profile";
+import Payments from "../pages/payments/Payments";
 
 import ManagerDashboard from "../pages/manager/Dashboard";
+import ManagerCategories from "../pages/manager/Categories";
 import Inventory from "../pages/manager/Inventory";
 import ManagerMaterials from "../pages/manager/Materials";
 import ManagerProducts from "../pages/manager/Products";
@@ -105,6 +107,14 @@ export default function AppRoutes() {
         }
       />
       <Route
+        path="/manager/categories"
+        element={
+          <ProtectedRoute roles={["MANAGER"]}>
+            <ManagerCategories />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/manager/materials"
         element={
           <ProtectedRoute roles={["MANAGER"]}>
@@ -165,6 +175,14 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute roles={["MANAGER"]}>
             <Users />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/payments"
+        element={
+          <ProtectedRoute roles={["MANAGER"]}>
+            <Payments scope="admin" title="Payments Manager" subtitle="Kelola pembayaran dari endpoint /payments dan /payments/:id." />
           </ProtectedRoute>
         }
       />
@@ -242,6 +260,14 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/cashier/payments"
+        element={
+          <ProtectedRoute roles={["KASIR"]}>
+            <Payments scope="admin" title="Payments Kasir" subtitle="Kelola pembayaran transaksi dari endpoint /payments." />
+          </ProtectedRoute>
+        }
+      />
 
       <Route
         path="/customer/dashboard"
@@ -282,6 +308,14 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute roles={["CUSTOMER"]}>
             <CustomerOrders />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/customer/payments"
+        element={
+          <ProtectedRoute roles={["CUSTOMER"]}>
+            <Payments scope="customer" title="Pembayaran Saya" subtitle="Lihat pembayaran customer dari endpoint /payments/me." />
           </ProtectedRoute>
         }
       />

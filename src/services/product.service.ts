@@ -1,5 +1,5 @@
 import api from "./api";
-import { PUBLIC_PRODUCTS, type PublicProduct, type PublicProductCategory } from "../data/publicProducts";
+import type { PublicProduct, PublicProductCategory } from "../data/publicProducts";
 
 type BackendPagination<T> = { items?: T[]; meta?: unknown };
 
@@ -42,12 +42,7 @@ function categoryLabel(category: PublicProductCategory) {
   return "Desserts";
 }
 
-function fallbackImage(index: number, category: PublicProductCategory) {
-  const pool = PUBLIC_PRODUCTS.filter((item) => item.category === category);
-  return pool[index % Math.max(pool.length, 1)]?.image ?? PUBLIC_PRODUCTS[index % PUBLIC_PRODUCTS.length]?.image;
-}
-
-function mapBackendProduct(product: BackendProduct, index: number): PublicProduct {
+function mapBackendProduct(product: BackendProduct): PublicProduct {
   const category = inferCategory(product);
   const price = Number(product.price || 0);
 
@@ -55,7 +50,7 @@ function mapBackendProduct(product: BackendProduct, index: number): PublicProduc
     id: product.id,
     name: product.name,
     price,
-    image: product.image || fallbackImage(index, category),
+    image: product.image || "",
     tag: product.stockStatus === "MENIPIS" ? "Stok Menipis" : product.stockStatus === "HABIS" ? "Habis" : "Fresh",
     desc: product.description || `${product.name} fresh dari Beard Papa's.`,
     category,
@@ -64,13 +59,8 @@ function mapBackendProduct(product: BackendProduct, index: number): PublicProduc
 }
 
 export async function getPublicProducts(): Promise<PublicProduct[]> {
-  try {
-    const { data } = await api.get<BackendPagination<BackendProduct>>("/products", {
-      params: { limit: 100, status: "ACTIVE" },
-    });
-    const mapped = pageItems(data).map(mapBackendProduct);
-    return mapped.length ? mapped : PUBLIC_PRODUCTS;
-  } catch {
-    return PUBLIC_PRODUCTS;
-  }
+  const { data } = await api.get<BackendPagination<BackendProduct>>("/products", {
+    params: { limit: 100, status: "ACTIVE" },
+  });
+  return pageItems(data).map(mapBackendProduct);
 }

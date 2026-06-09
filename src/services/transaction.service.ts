@@ -20,6 +20,11 @@ export type BackendTransaction = {
   notes?: string | null;
   cashierNameSnapshot?: string | null;
   totalPrice: number | string;
+  snapToken?: string | null;
+  midtransToken?: string | null;
+  paymentToken?: string | null;
+  token?: string | null;
+  redirectUrl?: string | null;
   createdAt: string;
   updatedAt?: string;
   items?: Array<{
@@ -39,6 +44,9 @@ export type BackendTransaction = {
     referenceNumber?: string | null;
     redirectUrl?: string | null;
     snapToken?: string | null;
+    midtransToken?: string | null;
+    paymentToken?: string | null;
+    token?: string | null;
     paidAt?: string | null;
   } | null;
   receipt?: {
@@ -72,7 +80,7 @@ export type OfflinePosPayload = {
   orderType: OrderFulfillmentType;
   tableNumber?: string | null;
   notes?: string;
-  paymentMethod: Exclude<OrderPaymentMethod, 'MIDTRANS'>;
+  paymentMethod: OrderPaymentMethod;
   cashReceived?: number | null;
   referenceNumber?: string | null;
 };
@@ -105,9 +113,27 @@ function mapPaymentMethod(method?: string | null): OrderPaymentMethod {
   return 'MIDTRANS';
 }
 
+export function extractMidtransToken(payload: unknown): string | undefined {
+  const root = payload as Record<string, unknown> | null | undefined;
+  const payment = root?.payment as Record<string, unknown> | null | undefined;
+  const candidates = [
+    payment?.snapToken,
+    payment?.midtransToken,
+    payment?.paymentToken,
+    payment?.token,
+    root?.snapToken,
+    root?.midtransToken,
+    root?.paymentToken,
+    root?.token,
+  ];
+
+  const token = candidates.find((value) => typeof value === 'string' && value.trim());
+  return typeof token === 'string' ? token : undefined;
+}
+
 function mapItems(items?: BackendTransaction['items']): OnlineOrderItem[] {
   return (items ?? []).map((item) => ({
-    productId: item.productId,
+    productId: item.productId || item.product?.id || '',
     name: item.product?.name || 'Produk',
     image: item.product?.image || undefined,
     quantity: Number(item.quantity || 0),
@@ -133,8 +159,8 @@ export function mapTransactionToOnlineOrder(transaction: BackendTransaction): On
     items,
     total: Number(transaction.totalPrice || items.reduce((sum, item) => sum + item.subtotal, 0)),
     receiptNumber: transaction.receipt?.receiptNumber,
-    paymentRedirectUrl: transaction.payment?.redirectUrl || undefined,
-    snapToken: transaction.payment?.snapToken || undefined,
+    paymentRedirectUrl: transaction.payment?.redirectUrl || transaction.redirectUrl || undefined,
+    snapToken: extractMidtransToken(transaction),
   };
 }
 
@@ -176,6 +202,11 @@ export async function listMyTransactions(params?: Record<string, unknown>) {
   return pageItems(data).map(mapTransactionToOnlineOrder);
 }
 
+export async function getTransactionById(id: string) {
+  const { data } = await api.get<BackendTransaction>(`/transactions/${id}`);
+  return mapTransactionToOnlineOrder(data);
+}
+
 export async function updateTransactionStatus(id: string, status: OnlineOrderStatus) {
   const { data } = await api.patch<BackendTransaction>(`/transactions/${id}/status`, { status });
   return mapTransactionToOnlineOrder(data);
@@ -202,7 +233,6 @@ export async function createOnlineCheckout(payload: OnlineCheckoutPayload) {
     },
   });
   const res = mapTransactionToOnlineOrder(data);
-  console.log(res);
   return res;
 }
 
@@ -220,4 +250,17 @@ export async function createOfflineTransaction(payload: OfflinePosPayload) {
     referenceNumber: payload.referenceNumber || null,
   });
   return mapTransactionToOnlineOrder(data);
+}
+
+export function getValidTransactionStatusTransitions(status: OnlineOrderStatus): OnlineOrderStatus[] {
+  const transitions: Record<OnlineOrderStatus, OnlineOrderStatus[]> = {
+    PENDING: ['CANCELLED'],
+    PAID: ['PROCESSING', 'CANCELLED'],
+    PROCESSING: ['READY', 'CANCELLED'],
+    READY: ['COMPLETED', 'CANCELLED'],
+    COMPLETED: [],
+    CANCELLED: [],
+  };
+
+  return transitions[status] ?? [];
 }

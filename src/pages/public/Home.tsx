@@ -1,20 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { ArrowRight, Star, ChefHat, Clock, ShieldCheck, Sparkles } from "lucide-react";
-import {
-  PUBLIC_IMAGE_PRELOADS,
-  FEATURED_PUBLIC_PRODUCTS,
-} from "../../data/publicProducts";
+import type { PublicProduct } from "../../data/publicProducts";
 import { preloadImages } from "../../utils/imageCache";
+import { getPublicProducts } from "../../services/product.service";
 
 const FADE_UP = (delay = 0) => ({
   initial: { opacity: 0, y: 40 },
   animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.7, delay, ease: [0.22, 1, 0.36, 1] as any },
+  transition: { duration: 0.7, delay, ease: [0.22, 1, 0.36, 1] as const },
 });
-
-const FEATURED_PRODUCTS = FEATURED_PUBLIC_PRODUCTS;
 
 const FEATURES = [
   { icon: ChefHat, title: "Dibuat Fresh", desc: "Shell dan filling disiapkan segar setiap hari" },
@@ -23,8 +19,18 @@ const FEATURES = [
 ];
 
 export default function Home() {
+  const [featuredProducts, setFeaturedProducts] = useState<PublicProduct[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+
   useEffect(() => {
-    preloadImages(PUBLIC_IMAGE_PRELOADS);
+    getPublicProducts()
+      .then((items) => {
+        const featured = items.slice(0, 3);
+        setFeaturedProducts(featured);
+        preloadImages(featured.map((item) => item.image).filter((url): url is string => Boolean(url)));
+      })
+      .catch(() => setFeaturedProducts([]))
+      .finally(() => setProductsLoading(false));
   }, []);
 
   return (
@@ -126,8 +132,13 @@ export default function Home() {
               </p>
             </div>
 
+            {productsLoading ? (
+              <div className="rounded-2xl border border-white/10 bg-dark/60 p-8 text-center text-sm text-white/45">Memuat menu unggulan...</div>
+            ) : featuredProducts.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-white/10 bg-dark/60 p-8 text-center text-sm text-white/45">Belum ada data menu unggulan dari backend.</div>
+            ) : (
             <div className="grid gap-4 md:grid-cols-3">
-              {FEATURED_PRODUCTS.map((product, index) => (
+              {featuredProducts.map((product, index) => (
                 <motion.div
                   key={product.id}
                   initial={{ opacity: 0, y: 24 }}
@@ -174,6 +185,7 @@ export default function Home() {
                 </motion.div>
               ))}
             </div>
+            )}
           </motion.div>
         </div>
       </section>

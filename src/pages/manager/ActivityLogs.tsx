@@ -31,11 +31,16 @@ export default function ActivityLogs() {
 
   const loadLogs = async (refresh = false) => {
     setLoading(true);
-    const data = await getActivityLogs({ search: search || undefined });
-    setLogs(data);
-    setLoading(false);
+    try {
+      const data = await getActivityLogs({ search: search || undefined });
+      setLogs(data);
+    } catch {
+      setLogs([]);
+    } finally {
+      setLoading(false);
+    }
     if (refresh) {
-      setToast({ open: true, title: "Activity log diperbarui", message: "Data audit berhasil dimuat dari backend/fallback." });
+      setToast({ open: true, title: "Activity log diperbarui", message: "Data audit berhasil dimuat dari backend." });
       window.setTimeout(() => setToast((current) => ({ ...current, open: false })), 2400);
     }
   };

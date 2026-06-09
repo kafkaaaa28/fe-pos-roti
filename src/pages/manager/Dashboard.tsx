@@ -185,8 +185,8 @@ export default function Dashboard() {
             <p className="font-display text-3xl font-bold text-white">{value}</p>
             <p className="mt-2 text-sm leading-6 text-white/55">{description}</p>
           </div>
-          <p className="rounded-xl bg-accent/10 p-4 text-sm text-accent">
-            Data ini sudah disiapkan mengikuti pola endpoint <strong>GET /dashboard/manager</strong>, jadi nanti tinggal diganti dari mock ke response backend.
+            <p className="rounded-xl bg-accent/10 p-4 text-sm text-accent">
+            Data ini mengikuti pola endpoint <strong>GET /dashboard/manager</strong> dan akan menampilkan state kosong atau error bila backend belum mengirim data.
           </p>
         </div>
       ),
@@ -472,7 +472,7 @@ export default function Dashboard() {
             action={<StatusBadge label="Normal" tone="success" />}
           >
             <div className="space-y-3">
-              <DetailRow label="Status API" value={<StatusBadge label="Mock fallback aktif" tone="info" />} />
+              <DetailRow label="Status API" value={<StatusBadge label="Backend-only" tone="info" />} />
               <DetailRow label="Stok Menipis" value={`${dashboard.summary.lowStockCount} item`} />
               <DetailRow label="Total Pelanggan" value={`${formatNumber(dashboard.summary.customerCount)} customer`} />
               <DetailRow label="Revenue Bulanan" value={formatRupiahShort(dashboard.summary.monthlyRevenue)} />
@@ -580,7 +580,7 @@ export default function Dashboard() {
         <div className="space-y-5">
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <p className="text-sm leading-6 text-white/60">
-              Pilih format export untuk periode <strong className="text-white">{selectedPeriodLabel}</strong>. File tetap dibuat dari data dummy di frontend, tetapi layout sudah dibuat seperti laporan resmi: tabel berwarna, rapi, dan dipisah per jenis laporan.
+              Pilih format export untuk periode <strong className="text-white">{selectedPeriodLabel}</strong>. Export mengikuti data dashboard yang sedang aktif dan menjaga layout laporan tetap rapi.
             </p>
           </div>
 

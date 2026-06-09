@@ -3,6 +3,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   LayoutDashboard,
   Package,
+  CreditCard,
+  Tags,
   ShoppingCart,
   Users,
   BookOpen,
@@ -24,11 +26,13 @@ import papaLogoRound from "../../assets/brand/logo-round.png";
 const MANAGER_LINKS = [
   { to: "/manager/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/manager/products", icon: Package, label: "Produk" },
+  { to: "/manager/categories", icon: Tags, label: "Kategori" },
   { to: "/manager/materials", icon: Boxes, label: "Bahan Baku" },
   { to: "/manager/recipes", icon: BookOpen, label: "Resep" },
   { to: "/manager/productions", icon: Factory, label: "Produksi" },
   { to: "/manager/inventory", icon: ArrowLeftRight, label: "Inventory" },
   { to: "/manager/stock-movements", icon: ActivityIcon, label: "Stock Movement" },
+  { to: "/manager/payments", icon: CreditCard, label: "Payments" },
   { to: "/manager/reports", icon: FileText, label: "Laporan" },
   { to: "/manager/activity-logs", icon: ActivityIcon, label: "Activity Logs" },
   { to: "/manager/users", icon: Users, label: "Pengguna" },
@@ -47,6 +51,7 @@ const KASIR_LINKS = [
   { to: "/cashier/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/cashier/pos", icon: ShoppingCart, label: "POS" },
   { to: "/cashier/orders", icon: Package, label: "Pesanan Online" },
+  { to: "/cashier/payments", icon: CreditCard, label: "Payments" },
 ];
 
 const CUSTOMER_LINKS = [
@@ -54,6 +59,7 @@ const CUSTOMER_LINKS = [
   { to: "/customer/cart", icon: ShoppingCart, label: "Keranjang" },
   { to: "/customer/checkout", icon: ClipboardList, label: "Checkout" },
   { to: "/customer/orders", icon: Package, label: "Tracking" },
+  { to: "/customer/payments", icon: CreditCard, label: "Payments" },
   { to: "/customer/profile", icon: UserCircle, label: "Profil" },
 ];
 

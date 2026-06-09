@@ -6,7 +6,8 @@ import Modal from '../../components/common/Modal';
 import Toast from '../../components/common/Toast';
 import { formatRupiah } from '../../utils/formatter';
 import type { OnlineOrder, OnlineOrderStatus } from '../../types/orders';
-import { fetchCashierOrders, getFulfillmentLabel, getNextCashierStatus, getOnlineOrders, getPaymentLabel, getStatusLabel, updateOnlineOrderStatus } from '../../services/orderStore';
+import { fetchCashierOrders, getFulfillmentLabel, getNextCashierStatus, getPaymentLabel, getStatusLabel, getValidOnlineOrderStatusTransitions, updateOnlineOrderStatus } from '../../services/orderStore';
+import { getApiErrorMessage } from '../../services/error';
 
 const STATUS_STYLE: Record<OnlineOrderStatus, string> = {
   PENDING: 'border-white/10 bg-white/10 text-white/65',
@@ -36,7 +37,9 @@ function formatDate(value: string) {
 }
 
 export default function Orders() {
-  const [orders, setOrders] = useState<OnlineOrder[]>(() => getOnlineOrders());
+  const [orders, setOrders] = useState<OnlineOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [selected, setSelected] = useState<OnlineOrder | null>(null);
   const [toast, setToast] = useState({ open: false, tone: 'success' as 'success' | 'error' | 'info', title: '', message: '' });
 
@@ -50,19 +53,10 @@ export default function Orders() {
   );
 
   useEffect(() => {
-    const sync = () =>
-      fetchCashierOrders()
-        .then(setOrders)
-        .catch(() => setOrders(getOnlineOrders()));
-    sync();
-    window.addEventListener('beard-papas-orders-updated', sync as EventListener);
-    window.addEventListener('papa-bread-orders-updated', sync as EventListener);
-    window.addEventListener('storage', sync);
-    return () => {
-      window.removeEventListener('beard-papas-orders-updated', sync as EventListener);
-      window.removeEventListener('papa-bread-orders-updated', sync as EventListener);
-      window.removeEventListener('storage', sync);
-    };
+    fetchCashierOrders()
+      .then(setOrders)
+      .catch((err) => setError(getApiErrorMessage(err, 'Gagal memuat transaksi online.')))
+      .finally(() => setLoading(false));
   }, []);
 
   const showToast = (tone: 'success' | 'error' | 'info', title: string, message: string) => {
@@ -73,15 +67,19 @@ export default function Orders() {
   const refreshOrders = () =>
     fetchCashierOrders()
       .then(setOrders)
-      .catch(() => setOrders(getOnlineOrders()));
+      .catch((err) => setError(getApiErrorMessage(err, 'Gagal memuat ulang transaksi online.')));
 
   const updateStatus = async (order: OnlineOrder, nextStatus?: OnlineOrderStatus) => {
     const target = nextStatus ?? getNextCashierStatus(order.status);
     if (!target) return;
-    const updated = await updateOnlineOrderStatus(order.id, target);
-    refreshOrders();
-    if (selected?.id === order.id && updated) setSelected(updated);
-    showToast('success', 'Status pesanan diperbarui', `${order.queueNumber || order.id} menjadi ${getStatusLabel(target, order.fulfillmentType)}.`);
+    try {
+      const updated = await updateOnlineOrderStatus(order.id, target);
+      void refreshOrders();
+      if (selected?.id === order.id && updated) setSelected(updated);
+      showToast('success', 'Status pesanan diperbarui', `${order.queueNumber || order.id} menjadi ${getStatusLabel(target, order.fulfillmentType)}.`);
+    } catch (err) {
+      showToast('error', 'Gagal memperbarui status', getApiErrorMessage(err));
+    }
   };
 
   return (
@@ -127,8 +125,15 @@ export default function Orders() {
                 </tr>
               </thead>
               <tbody>
-                {orders.map((order, index) => {
+                {loading ? (
+                  <tr><td colSpan={8} className="px-5 py-10 text-center text-white/45">Memuat transaksi online dari backend...</td></tr>
+                ) : error ? (
+                  <tr><td colSpan={8} className="px-5 py-10 text-center text-red-200">{error}</td></tr>
+                ) : orders.length === 0 ? (
+                  <tr><td colSpan={8} className="px-5 py-10 text-center text-white/45">Belum ada data transaksi online.</td></tr>
+                ) : orders.map((order, index) => {
                   const next = getNextCashierStatus(order.status);
+                  const transitions = getValidOnlineOrderStatusTransitions(order.status);
                   const ActionIcon = getActionIcon(order.status);
                   return (
                     <tr key={order.id} className={`border-t border-white/5 hover:bg-white/5 ${index % 2 ? 'bg-white/[0.02]' : ''}`}>
@@ -158,12 +163,12 @@ export default function Orders() {
                           <button onClick={() => setSelected(order)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-white/70 hover:border-accent hover:text-accent">
                             <Eye size={14} /> Detail
                           </button>
-                          {next && (
+                          {next && transitions.includes(next) && (
                             <button onClick={() => updateStatus(order)} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-accent px-3 py-2 text-xs font-bold text-dark hover:bg-cream">
                               <ActionIcon size={14} /> {getActionLabel(order.status)}
                             </button>
                           )}
-                          {order.status !== 'COMPLETED' && order.status !== 'CANCELLED' && (
+                          {transitions.includes('CANCELLED') && (
                             <button onClick={() => updateStatus(order, 'CANCELLED')} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-red-500/10 px-3 py-2 text-xs font-bold text-red-200 hover:bg-red-500/20">
                               <XCircle size={14} /> Batal
                             </button>

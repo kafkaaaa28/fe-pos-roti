@@ -6,12 +6,13 @@ import CustomerShell from '../../components/customer/CustomerShell';
 import Toast, { type ToastTone } from '../../components/common/Toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
-import { PUBLIC_IMAGE_PRELOADS, PUBLIC_PRODUCT_CATEGORIES, PUBLIC_PRODUCTS, type PublicProduct, type PublicProductCategory } from '../../data/publicProducts';
+import { PUBLIC_PRODUCT_CATEGORIES, type PublicProduct, type PublicProductCategory } from '../../data/publicProducts';
 import { preloadImages } from '../../utils/imageCache';
 import { formatRupiah } from '../../utils/formatter';
 import type { OnlineOrder, OnlineOrderStatus } from '../../types/orders';
 import { fetchCustomerOrders, getCustomerOrders, getFulfillmentLabel, getStatusLabel } from '../../services/orderStore';
 import { getPublicProducts } from '../../services/product.service';
+import { getApiErrorMessage } from '../../services/error';
 
 type ActiveCategory = 'all' | PublicProductCategory;
 
@@ -33,7 +34,9 @@ export default function CustomerDashboard() {
   const { user } = useAuth();
   const { items, total, addItem, updateQty, removeItem } = useCart();
   const [orders, setOrders] = useState<OnlineOrder[]>(() => getCustomerOrders());
-  const [menuProducts, setMenuProducts] = useState<PublicProduct[]>(PUBLIC_PRODUCTS);
+  const [menuProducts, setMenuProducts] = useState<PublicProduct[]>([]);
+  const [menuLoading, setMenuLoading] = useState(true);
+  const [menuError, setMenuError] = useState('');
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<ActiveCategory>('all');
   const [cartSheetOpen, setCartSheetOpen] = useState(false);
@@ -51,25 +54,20 @@ export default function CustomerDashboard() {
   }, [activeCategory, query, menuProducts]);
 
   useEffect(() => {
-    preloadImages(PUBLIC_IMAGE_PRELOADS);
-    getPublicProducts().then((items) => {
-      setMenuProducts(items);
-      preloadImages(items.map((item) => item.image));
-    });
-    fetchCustomerOrders().then(setOrders);
+    getPublicProducts()
+      .then((items) => {
+        setMenuProducts(items);
+        preloadImages(items.map((item) => item.image).filter((url): url is string => Boolean(url)));
+      })
+      .catch((error) => setMenuError(getApiErrorMessage(error, 'Gagal memuat menu dari backend.')))
+      .finally(() => setMenuLoading(false));
+    fetchCustomerOrders().then(setOrders).catch(() => setOrders([]));
   }, []);
 
   useEffect(() => {
-    const sync = () =>
-      fetchCustomerOrders()
-        .then(setOrders)
-        .catch(() => setOrders(getCustomerOrders()));
-    window.addEventListener('beard-papas-orders-updated', sync as EventListener);
-    window.addEventListener('papa-bread-orders-updated', sync as EventListener);
+    const sync = () => fetchCustomerOrders().then(setOrders).catch(() => setOrders([]));
     window.addEventListener('storage', sync);
     return () => {
-      window.removeEventListener('beard-papas-orders-updated', sync as EventListener);
-      window.removeEventListener('papa-bread-orders-updated', sync as EventListener);
       window.removeEventListener('storage', sync);
     };
   }, []);
@@ -235,6 +233,11 @@ export default function CustomerDashboard() {
             </div>
           </div>
 
+          {menuLoading ? (
+            <div className="rounded-2xl border border-white/10 bg-dark/45 p-8 text-center text-sm text-white/45">Memuat menu dari backend...</div>
+          ) : menuError ? (
+            <div className="rounded-2xl border border-red-400/20 bg-red-500/10 p-8 text-center text-sm text-red-100">{menuError}</div>
+          ) : (
           <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
             {filteredProducts.map((product, index) => (
               <motion.div
@@ -266,8 +269,9 @@ export default function CustomerDashboard() {
               </motion.div>
             ))}
           </div>
+          )}
 
-          {filteredProducts.length === 0 && <div className="mt-6 rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-white/45">Menu tidak ditemukan. Coba kategori atau kata kunci lain.</div>}
+          {!menuLoading && !menuError && filteredProducts.length === 0 && <div className="mt-6 rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-white/45">Belum ada data menu dari backend.</div>}
         </section>
       </div>
 

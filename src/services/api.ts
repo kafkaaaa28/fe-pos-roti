@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosHeaders } from "axios";
 import { API_URL } from "../utils/constants";
 
 const TOKEN_KEY = "pos-roti-token";
@@ -15,6 +15,14 @@ api.interceptors.request.use((config) => {
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+    if (config.headers instanceof AxiosHeaders) {
+      config.headers.delete("Content-Type");
+    } else if (config.headers) {
+      delete (config.headers as Record<string, unknown>)["Content-Type"];
+    }
   }
 
   return config;

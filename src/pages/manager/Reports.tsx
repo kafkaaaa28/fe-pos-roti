@@ -447,7 +447,7 @@ export default function Reports() {
             </div>
             <h1 className="font-display text-2xl text-white sm:text-3xl md:text-4xl">Laporan Manager</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-white/45">
-              Pilih jenis laporan, atur periode, lihat tabel detail, lalu download Excel atau PDF. Data masih dummy, tapi alurnya sudah disiapkan untuk endpoint backend.
+              Pilih jenis laporan, atur periode, lihat tabel detail, lalu download Excel atau PDF. Data mengikuti response backend yang tersedia saat ini.
             </p>
             <p className="mt-2 text-xs text-white/30">Terakhir diperbarui: {formatDate(reports.generatedAt)}</p>
           </div>
