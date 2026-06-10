@@ -219,7 +219,7 @@ export default function Products() {
       subtitle="Kelola master produk. Gambar diupload ke /uploads/images terlebih dahulu, lalu URL disimpan ke payload JSON /products."
       badge="Manager - Master Data Produk"
       action={
-        <Button onClick={openAdd} className="inline-flex items-center gap-2" disabled={loading || categories.length === 0}>
+        <Button onClick={openAdd} className="inline-flex items-center gap-2" disabled={loading}>
           <Plus size={16} /> Tambah Produk
         </Button>
       }
@@ -330,6 +330,11 @@ export default function Products() {
               <input type="file" accept="image/*" onChange={handleImageChange} className="sr-only" />
             </label>
           </div>
+          {categories.length === 0 && (
+            <p className="rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-xs text-amber-200">
+              Kategori belum ter-load. Modal tetap bisa dibuka, tapi produk baru belum bisa disimpan sebelum ada kategori.
+            </p>
+          )}
           <textarea
             value={form.description}
             onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}

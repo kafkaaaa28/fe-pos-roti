@@ -6,6 +6,7 @@ import Toast, { type ToastTone } from '../../components/common/Toast';
 import ManagerPageShell from '../../components/manager/ManagerPageShell';
 import ManagerCrudTable from '../../components/manager/ManagerCrudTable';
 import { createManagerRecipe, deleteManagerRecipe, listManagerMaterials, listManagerProducts, listManagerRecipes, updateManagerRecipe } from '../../services/manager.service';
+import { getApiErrorMessage } from '../../services/error';
 import type { ManagerMaterial, ManagerProduct, ManagerRecipe, RecipeMaterialLine, RecipePayload } from '../../types/manager';
 import { formatDate, formatNumber } from '../../utils/formatter';
 
@@ -32,10 +33,32 @@ export default function Recipes() {
   };
 
   const loadData = async () => {
-    const [recipeResponse, productResponse, materialResponse] = await Promise.all([listManagerRecipes(), listManagerProducts(), listManagerMaterials()]);
-    setRecipes(recipeResponse.data);
-    setProducts(productResponse.data.filter((item) => item.status === 'ACTIVE'));
-    setMaterials(materialResponse.data);
+    const [recipeResult, productResult, materialResult] = await Promise.allSettled([
+      listManagerRecipes(),
+      listManagerProducts(),
+      listManagerMaterials(),
+    ]);
+
+    if (recipeResult.status === 'fulfilled') {
+      setRecipes(recipeResult.value.data);
+    } else {
+      showToast('error', 'Recipe gagal dimuat', getApiErrorMessage(recipeResult.reason));
+      setRecipes([]);
+    }
+
+    if (productResult.status === 'fulfilled') {
+      setProducts(productResult.value.data.filter((item) => item.status === 'ACTIVE'));
+    } else {
+      showToast('error', 'Produk gagal dimuat', getApiErrorMessage(productResult.reason));
+      setProducts([]);
+    }
+
+    if (materialResult.status === 'fulfilled') {
+      setMaterials(materialResult.value.data);
+    } else {
+      showToast('error', 'Bahan gagal dimuat', getApiErrorMessage(materialResult.reason));
+      setMaterials([]);
+    }
   };
 
   useEffect(() => {
