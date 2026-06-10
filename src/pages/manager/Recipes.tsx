@@ -11,7 +11,7 @@ import type { ManagerMaterial, ManagerProduct, ManagerRecipe, RecipeMaterialLine
 import { formatDate, formatNumber } from '../../utils/formatter';
 
 const EMPTY_LINE: RecipeMaterialLine = { materialId: '', materialName: '', quantity: 0, unit: 'kg' };
-const EMPTY_FORM = { productId: '', productName: '', materials: [{ ...EMPTY_LINE }], notes: '' };
+const EMPTY_FORM = { productId: '', productName: '', materials: [{ ...EMPTY_LINE }] };
 
 function formatMaterials(materials: RecipeMaterialLine[]) {
   return materials.map((item) => `${item.materialName} ${item.quantity} ${item.unit}`).join(', ');
@@ -70,13 +70,13 @@ export default function Recipes() {
   const openAdd = () => {
     const firstProduct = products[0];
     setSelected(null);
-    setForm({ productId: firstProduct?.id ?? '', productName: firstProduct?.name ?? '', materials: [{ ...EMPTY_LINE }], notes: '' });
+    setForm({ productId: firstProduct?.id ?? '', productName: firstProduct?.name ?? '', materials: [{ ...EMPTY_LINE }] });
     setMode('add');
   };
 
   const openEdit = (item: ManagerRecipe) => {
     setSelected(item);
-    setForm({ productId: item.productId, productName: item.productName, materials: item.materials.map((line) => ({ ...line })), notes: item.notes });
+    setForm({ productId: item.productId, productName: item.productName, materials: item.materials.map((line) => ({ ...line })) });
     setMode('edit');
   };
 
@@ -110,7 +110,7 @@ export default function Recipes() {
   const toPayload = (): RecipePayload | null => {
     const cleanLines = form.materials.filter((line) => line.materialId && line.materialName && Number(line.quantity) > 0);
     if (!form.productId || !form.productName || cleanLines.length === 0) return null;
-    return { productId: form.productId, productName: form.productName, materials: cleanLines, notes: form.notes.trim() || '-' };
+    return { productId: form.productId, productName: form.productName, materials: cleanLines };
   };
 
   const handleSubmit = async () => {
@@ -254,12 +254,6 @@ export default function Recipes() {
           <Button variant="ghost" onClick={addLine} className="w-full">
             Tambah Baris Bahan
           </Button>
-          <textarea
-            value={form.notes}
-            onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))}
-            className="h-24 w-full resize-none rounded-xl border border-white/10 bg-dark px-4 py-3 text-sm text-white outline-none focus:border-primary"
-            placeholder="Catatan recipe"
-          />
           <Button onClick={() => void handleSubmit()} className="w-full">
             {mode === 'add' ? 'Simpan Recipe' : 'Simpan Perubahan'}
           </Button>
@@ -292,7 +286,6 @@ export default function Recipes() {
                 </tbody>
               </table>
             </div>
-            <p className="mt-4 text-sm text-white/50">{selected.notes}</p>
             <p className="mt-3 text-xs text-white/30">Update: {formatDate(selected.updatedAt)}</p>
           </div>
         )}

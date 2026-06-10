@@ -46,7 +46,6 @@ export interface ManagerRecipe {
   productId: string;
   productName: string;
   materials: RecipeMaterialLine[];
-  notes: string;
   createdAt: string;
   updatedAt: string;
 }

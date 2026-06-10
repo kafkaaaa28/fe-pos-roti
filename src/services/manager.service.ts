@@ -214,7 +214,6 @@ function groupBackendRecipes(items: BackendRecipe[]): ManagerRecipe[] {
         productId,
         productName,
         materials: [line],
-        notes: 'Recipe/BOM dari backend',
         createdAt: nowIso(),
         updatedAt: nowIso(),
       });

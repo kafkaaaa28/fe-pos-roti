@@ -18,18 +18,17 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = typeof window !== 'undefined' ? (localStorage.getItem(TOKEN_KEY) ?? localStorage.getItem('token')) : null;
+  const headers = AxiosHeaders.from(config.headers);
 
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    headers.set('Authorization', `Bearer ${token}`);
   }
 
   if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
-    if (config.headers instanceof AxiosHeaders) {
-      config.headers.delete('Content-Type');
-    } else if (config.headers) {
-      delete (config.headers as Record<string, unknown>)['Content-Type'];
-    }
+    headers.delete('Content-Type');
   }
+
+  config.headers = headers;
 
   return config;
 });
