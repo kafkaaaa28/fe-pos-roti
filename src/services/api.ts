@@ -3,6 +3,12 @@ import { API_URL } from '../utils/constants';
 
 const TOKEN_KEY = 'pos-roti-token';
 
+type BackendEnvelope<T> = {
+  success?: boolean;
+  data?: T;
+  timestamp?: string;
+};
+
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -29,7 +35,20 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const payload = response.data as BackendEnvelope<unknown> | unknown;
+
+    if (
+      payload &&
+      typeof payload === 'object' &&
+      'success' in payload &&
+      'data' in payload
+    ) {
+      response.data = (payload as BackendEnvelope<unknown>).data;
+    }
+
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem(TOKEN_KEY);
