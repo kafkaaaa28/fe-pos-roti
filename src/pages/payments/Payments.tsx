@@ -20,7 +20,12 @@ type PaymentsProps = {
 
 function PaymentShell({ scope, children }: { scope: Scope; children: ReactNode }) {
   if (scope === 'customer') return <CustomerShell>{children}</CustomerShell>;
-  return <div className="flex min-h-dvh bg-dark"><Sidebar /><main className="min-w-0 flex-1 overflow-x-hidden px-4 pb-6 pt-20 sm:px-5 lg:px-8 lg:py-8">{children}</main></div>;
+  return (
+    <div className="flex min-h-dvh bg-dark">
+      <Sidebar />
+      <main className="min-w-0 flex-1 overflow-x-hidden px-4 pb-6 pt-20 sm:px-5 lg:px-8 lg:py-8">{children}</main>
+    </div>
+  );
 }
 
 export default function Payments({ scope, title, subtitle }: PaymentsProps) {
@@ -92,15 +97,34 @@ export default function Payments({ scope, title, subtitle }: PaymentsProps) {
       <div className="mb-5 grid gap-3 rounded-2xl border border-white/10 bg-surface p-4 lg:grid-cols-[minmax(0,1fr)_240px_240px]">
         <div className="relative">
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-accent" />
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari payment, transaction, order, status..." className="min-h-12 w-full rounded-2xl border border-white/10 bg-dark/60 px-11 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-accent/60" />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Cari payment, transaction, order, status..."
+            className="min-h-12 w-full rounded-2xl border border-white/10 bg-dark/60 px-11 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-accent/60"
+          />
         </div>
         <div className="flex gap-2">
-          <input value={orderId} onChange={(event) => setOrderId(event.target.value)} placeholder="Order ID" className="min-h-12 w-full rounded-2xl border border-white/10 bg-dark/60 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-accent/60" />
-          <Button variant="ghost" onClick={() => void openOrderPayment()}><ShoppingBag size={16} /> Cari Order</Button>
+          <input
+            value={orderId}
+            onChange={(event) => setOrderId(event.target.value)}
+            placeholder="Order ID"
+            className="min-h-12 w-full rounded-2xl border border-white/10 bg-dark/60 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-accent/60"
+          />
+          <Button variant="ghost" onClick={() => void openOrderPayment()}>
+            <ShoppingBag size={16} /> Cari Order
+          </Button>
         </div>
         <div className="flex gap-2">
-          <input value={paymentId} onChange={(event) => setPaymentId(event.target.value)} placeholder="Payment ID" className="min-h-12 w-full rounded-2xl border border-white/10 bg-dark/60 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-accent/60" />
-          <Button variant="ghost" onClick={() => void openPaymentDetail(paymentId)}><Eye size={16} /> Detail</Button>
+          <input
+            value={paymentId}
+            onChange={(event) => setPaymentId(event.target.value)}
+            placeholder="Payment ID"
+            className="min-h-12 w-full rounded-2xl border border-white/10 bg-dark/60 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-accent/60"
+          />
+          <Button variant="ghost" onClick={() => void openPaymentDetail(paymentId)}>
+            <Eye size={16} /> Detail
+          </Button>
         </div>
       </div>
 
@@ -117,7 +141,9 @@ export default function Payments({ scope, title, subtitle }: PaymentsProps) {
               <thead>
                 <tr className="bg-white/5 text-white/50">
                   {['Payment ID', 'Transaction', 'Order', 'Method', 'Status', 'Total', 'Aksi'].map((heading) => (
-                    <th key={heading} className="px-5 py-3 text-left font-semibold">{heading}</th>
+                    <th key={heading} className="px-5 py-3 text-left font-semibold">
+                      {heading}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -129,7 +155,7 @@ export default function Payments({ scope, title, subtitle }: PaymentsProps) {
                     <td className="px-5 py-4 text-white/65">{item.orderId || item.midtransOrderId || '-'}</td>
                     <td className="px-5 py-4 text-white/65">{item.paymentMethod || '-'}</td>
                     <td className="px-5 py-4 text-white/65">{item.paymentStatus || '-'}</td>
-                    <td className="px-5 py-4 font-bold text-white">{formatRupiah(Number(item.totalPrice ?? item.amount ?? 0))}</td>
+                    <td className="px-5 py-4 font-bold text-white">{formatRupiah(Number(item.transaction?.totalPrice ?? item.amount ?? 0))}</td>
                     <td className="px-5 py-4">
                       <button onClick={() => setSelected(item)} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-xs font-bold text-white/70 hover:border-accent hover:text-accent">
                         <Eye size={14} /> Detail

@@ -73,11 +73,19 @@ type BackendProduction = {
 };
 type BackendStockMovement = {
   id: string;
-  materialId: string;
+  itemType: 'PRODUCT' | 'MATERIAL';
+  itemId: string;
+  itemName?: string;
+  unit?: string;
+  productId?: string | null;
+  materialId?: string | null;
   type: StockMovementType;
   quantity: number | string;
   description?: string | null;
+  sourceModule?: 'MATERIAL' | 'PRODUCTION' | 'POS' | 'ONLINE_ORDER' | 'ADJUSTMENT' | null;
+  createdBy?: string | null;
   createdAt: string;
+  product?: { name?: string } | null;
   material?: { name?: string; unit?: string } | null;
 };
 type BackendUser = {
@@ -142,18 +150,33 @@ function mapBackendProduction(item: BackendProduction): ManagerProduction {
 }
 
 function mapBackendStockMovement(item: BackendStockMovement): ManagerStockMovement {
+  const itemName =
+    item.itemName ??
+    (item.itemType === 'PRODUCT' ? item.product?.name : item.material?.name) ??
+    (item.itemType === 'PRODUCT' ? 'Produk' : 'Bahan Baku');
+  const unit =
+    item.unit ??
+    (item.itemType === 'PRODUCT' ? 'pcs' : item.material?.unit) ??
+    'unit';
+
   return {
     id: item.id,
-    itemId: item.materialId,
-    itemName: item.material?.name ?? 'Bahan Baku',
-    itemType: 'MATERIAL',
+    itemId: item.itemId,
+    itemName,
+    itemType: item.itemType,
     type: item.type,
     quantity: Number(item.quantity),
-    unit: item.material?.unit ?? 'unit',
-    description: item.description ?? 'Mutasi stok bahan baku',
+    unit,
+    description: item.description ?? `Mutasi stok ${itemName}`,
     createdAt: item.createdAt,
-    createdBy: 'Sistem',
-    sourceModule: item.type === 'ADJUSTMENT' ? 'ADJUSTMENT' : 'MATERIAL',
+    createdBy: item.createdBy ?? 'Sistem',
+    sourceModule:
+      item.sourceModule ??
+      (item.type === 'ADJUSTMENT'
+        ? 'ADJUSTMENT'
+        : item.itemType === 'PRODUCT'
+          ? 'POS'
+          : 'MATERIAL'),
   };
 }
 
@@ -416,15 +439,14 @@ export async function createStockAdjustment(payload: StockAdjustmentPayload) {
     throw new Error('Item inventory tidak ditemukan');
   }
 
-  if (payload.itemType !== 'MATERIAL') {
-    throw new Error('Stock adjustment produk belum tersedia di backend frontend ini. Gunakan endpoint backend khusus produk jika sudah tersedia.');
-  }
-
   const { data } = await api.post<BackendStockMovement>('/stock-movements', {
-    materialId: payload.itemId,
+    itemType: payload.itemType,
+    itemId: payload.itemId,
     type: payload.type,
     quantity: payload.quantity,
     description: payload.description || 'Penyesuaian stok dari halaman manager inventory.',
+    sourceModule: 'ADJUSTMENT',
+    createdBy: payload.createdBy || 'Manager',
   });
   const movement = mapBackendStockMovement(data);
   stockMovements = [movement, ...stockMovements.filter((item) => item.id !== movement.id)];

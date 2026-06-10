@@ -1,8 +1,8 @@
-import api from "./api";
-import type { PaginationMeta } from "./category.service";
+import api from './api';
+import type { PaginationMeta } from './category.service';
 
-export type PaymentMethod = "CASH" | "QRIS" | "TRANSFER" | "MIDTRANS";
-export type PaymentStatus = "PENDING" | "PAID" | "FAILED" | "EXPIRED" | "CANCELLED" | string;
+export type PaymentMethod = 'CASH' | 'QRIS' | 'TRANSFER' | 'MIDTRANS';
+export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'EXPIRED' | 'CANCELLED' | string;
 
 export type Payment = {
   id: string;
@@ -59,12 +59,12 @@ function withPagination<T>(payload: PaginationResponse<T> | T[]) {
 }
 
 export async function listMyPayments(params?: PaymentQuery) {
-  const { data } = await api.get<PaginationResponse<Payment>>("/payments/me", { params });
+  const { data } = await api.get<PaginationResponse<Payment>>('/payments/me', { params });
   return withPagination(data);
 }
 
 export async function listPayments(params?: PaymentQuery) {
-  const { data } = await api.get<PaginationResponse<Payment>>("/payments", { params });
+  const { data } = await api.get<PaginationResponse<Payment>>('/payments', { params });
   return withPagination(data);
 }
 

@@ -63,6 +63,23 @@ export default function Checkout() {
 
     setSubmitting(true);
     try {
+      console.log({
+        customerId: user?.id,
+        customerName: customerName.trim(),
+        customerEmail: user?.email,
+        customerPhone: customerPhone.trim(),
+        fulfillmentType,
+        tableNumber: tableNumber.trim(),
+        note: note.trim(),
+        paymentMethod,
+        items: items.map((item) => ({
+          productId: item.id,
+          name: item.name,
+          image: item.image,
+          quantity: item.qty,
+          price: item.price,
+        })),
+      });
       const order = await createOnlineOrder({
         customerId: user?.id,
         customerName: customerName.trim(),

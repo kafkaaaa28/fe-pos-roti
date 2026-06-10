@@ -153,26 +153,39 @@ export async function createStaffStockMovement(payload: {
 }) {
   const { data } = await api.post<{
     id: string;
-    materialId: string;
+    itemType: "PRODUCT" | "MATERIAL";
+    itemId: string;
     type: StockMovementType;
     quantity: number | string;
     description?: string | null;
+    unit?: string | null;
+    sourceModule?: "MATERIAL" | "PRODUCTION" | "POS" | "ONLINE_ORDER" | "ADJUSTMENT" | null;
+    createdBy?: string | null;
     createdAt: string;
+    product?: { name?: string | null } | null;
     material?: { name?: string | null; unit?: string | null } | null;
-  }>("/stock-movements", payload);
+  }>("/stock-movements", {
+    itemType: "MATERIAL",
+    itemId: payload.materialId,
+    type: payload.type,
+    quantity: payload.quantity,
+    description: payload.description,
+    sourceModule: payload.type === "ADJUSTMENT" ? "ADJUSTMENT" : "MATERIAL",
+    createdBy: "Staff",
+  });
 
   const movement: ManagerStockMovement = {
     id: data.id,
-    itemId: data.materialId,
+    itemId: data.itemId,
     itemName: data.material?.name ?? "Bahan Baku",
-    itemType: "MATERIAL",
+    itemType: data.itemType,
     type: data.type,
     quantity: Number(data.quantity),
-    unit: data.material?.unit ?? "unit",
+    unit: data.unit ?? data.material?.unit ?? "unit",
     description: data.description ?? payload.description,
     createdAt: data.createdAt,
-    createdBy: "Staff",
-    sourceModule: payload.type === "ADJUSTMENT" ? "ADJUSTMENT" : "MATERIAL",
+    createdBy: data.createdBy ?? "Staff",
+    sourceModule: data.sourceModule ?? (payload.type === "ADJUSTMENT" ? "ADJUSTMENT" : "MATERIAL"),
   };
 
   return makeStaffResponse("Stock movement berhasil disimpan ke backend", movement);

@@ -1,9 +1,9 @@
-import api from "./api";
+import api from './api';
 
 export type MidtransConfig = {
   clientKey: string;
   isProduction: boolean;
-  snapUrl: string;
+  snapJsUrl: string;
 };
 
 export type MidtransPayCallbacks = {
@@ -23,11 +23,11 @@ declare global {
 
 let configPromise: Promise<MidtransConfig> | null = null;
 let scriptPromise: Promise<void> | null = null;
-let loadedScriptUrl = "";
+let loadedScriptUrl = '';
 
 export async function getMidtransConfig() {
   if (!configPromise) {
-    configPromise = api.get<MidtransConfig>("/payments/midtrans/config").then((response) => response.data);
+    configPromise = api.get<MidtransConfig>('/payments/midtrans/config').then((response) => response.data);
   }
 
   return configPromise;
@@ -36,29 +36,44 @@ export async function getMidtransConfig() {
 export async function loadMidtransSnap() {
   const config = await getMidtransConfig();
 
-  if (window.snap && loadedScriptUrl === config.snapUrl) {
+  const snapScriptUrl = config.snapJsUrl;
+
+  if (!snapScriptUrl) {
+    throw new Error('URL script Midtrans tidak ditemukan dari config backend.');
+  }
+
+  console.log('Midtrans config:', config);
+
+  if (window.snap && loadedScriptUrl === snapScriptUrl) {
     return config;
   }
 
-  if (!scriptPromise || loadedScriptUrl !== config.snapUrl) {
-    loadedScriptUrl = config.snapUrl;
+  if (!scriptPromise || loadedScriptUrl !== snapScriptUrl) {
+    loadedScriptUrl = snapScriptUrl;
+
     scriptPromise = new Promise<void>((resolve, reject) => {
-      const existing = document.querySelector<HTMLScriptElement>(`script[data-midtrans-snap="true"][src="${config.snapUrl}"]`);
+      const existing = document.querySelector<HTMLScriptElement>(`script[data-midtrans-snap="true"][src="${snapScriptUrl}"]`);
 
       if (existing) {
-        existing.addEventListener("load", () => resolve(), { once: true });
-        existing.addEventListener("error", () => reject(new Error("Gagal memuat script Midtrans Snap.")), { once: true });
-        if (window.snap) resolve();
+        if (window.snap) {
+          resolve();
+          return;
+        }
+
+        existing.addEventListener('load', () => resolve(), { once: true });
+        existing.addEventListener('error', () => reject(new Error('Gagal memuat script Midtrans Snap.')), { once: true });
         return;
       }
 
-      const script = document.createElement("script");
-      script.src = config.snapUrl;
+      const script = document.createElement('script');
+      script.src = snapScriptUrl;
       script.async = true;
-      script.dataset.midtransSnap = "true";
-      script.setAttribute("data-client-key", config.clientKey);
+      script.dataset.midtransSnap = 'true';
+      script.setAttribute('data-client-key', config.clientKey);
+
       script.onload = () => resolve();
-      script.onerror = () => reject(new Error("Gagal memuat script Midtrans Snap."));
+      script.onerror = () => reject(new Error('Gagal memuat script Midtrans Snap.'));
+
       document.body.appendChild(script);
     });
   }
@@ -66,7 +81,7 @@ export async function loadMidtransSnap() {
   await scriptPromise;
 
   if (!window.snap) {
-    throw new Error("Midtrans Snap belum tersedia setelah script dimuat.");
+    throw new Error('Midtrans Snap belum tersedia setelah script dimuat.');
   }
 
   return config;

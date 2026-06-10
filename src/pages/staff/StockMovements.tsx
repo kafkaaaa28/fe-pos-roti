@@ -53,7 +53,8 @@ export default function StockMovements() {
 
   const handleSubmit = async () => {
     const quantity = Number(form.quantity);
-    if (!form.materialId || Number.isNaN(quantity) || quantity <= 0 || !form.description.trim()) {
+    const invalidQuantity = form.type === "ADJUSTMENT" ? quantity < 0 : quantity <= 0;
+    if (!form.materialId || Number.isNaN(quantity) || invalidQuantity || !form.description.trim()) {
       showToast("error", "Data belum valid", "Pilih bahan, jenis mutasi, jumlah, dan keterangan.");
       return;
     }
@@ -138,9 +139,10 @@ export default function StockMovements() {
               </select>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <select value={form.type} onChange={(event) => setForm((current) => ({ ...current, type: event.target.value as StockMovementType }))} className="rounded-xl border border-white/10 bg-dark px-4 py-3 text-sm text-white outline-none focus:border-accent"><option value="IN">IN / Restock</option><option value="OUT">OUT / Keluar</option><option value="ADJUSTMENT">ADJUSTMENT</option></select>
-              <input value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} type="number" min={1} className="rounded-xl border border-white/10 bg-dark px-4 py-3 text-sm text-white outline-none focus:border-accent" placeholder="Jumlah" />
+              <select value={form.type} onChange={(event) => setForm((current) => ({ ...current, type: event.target.value as StockMovementType, quantity: event.target.value === "ADJUSTMENT" ? String(selectedMaterial?.stock ?? 0) : "" }))} className="rounded-xl border border-white/10 bg-dark px-4 py-3 text-sm text-white outline-none focus:border-accent"><option value="IN">IN / Restock</option><option value="OUT">OUT / Keluar</option><option value="ADJUSTMENT">ADJUSTMENT</option></select>
+              <input value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} type="number" min={form.type === "ADJUSTMENT" ? 0 : 1} className="rounded-xl border border-white/10 bg-dark px-4 py-3 text-sm text-white outline-none focus:border-accent" placeholder={form.type === "ADJUSTMENT" ? "Stok akhir" : "Jumlah perubahan"} />
             </div>
+            <p className="text-xs text-white/45">{form.type === "ADJUSTMENT" ? "ADJUSTMENT akan mengatur stok akhir bahan sesuai angka yang diinput." : "IN/OUT akan menambah atau mengurangi stok dari angka saat ini."}</p>
             <textarea value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} className="h-20 w-full resize-none rounded-xl border border-white/10 bg-dark px-4 py-3 text-sm text-white outline-none focus:border-accent" placeholder="Keterangan mutasi stok" />
             <button disabled={submitting} onClick={handleSubmit} className="flex min-h-12 w-full items-center justify-center rounded-xl bg-accent py-3 font-bold text-dark transition-colors hover:bg-cream disabled:opacity-60">
               {submitting ? <Loader2 className="animate-spin" size={18} /> : "Simpan Movement"}

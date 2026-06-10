@@ -1,11 +1,5 @@
 import type { CreateOnlineOrderPayload, OnlineOrder, OnlineOrderStatus } from '../types/orders';
-import {
-  createOnlineCheckout,
-  getValidTransactionStatusTransitions,
-  listAllTransactions,
-  listMyTransactions,
-  updateTransactionStatus,
-} from './transaction.service';
+import { createOnlineCheckout, getValidTransactionStatusTransitions, listAllTransactions, listMyTransactions, updateTransactionStatus } from './transaction.service';
 
 export function getOnlineOrders(): OnlineOrder[] {
   return [];
@@ -41,7 +35,7 @@ export async function createOnlineOrder(payload: CreateOnlineOrderPayload) {
       email: payload.customerEmail || 'customer@beardpapas.local',
       phone: payload.customerPhone,
     },
-    enabledPayments: payload.paymentMethod === 'TRANSFER' ? ['bank_transfer'] : ['qris'],
+    enabledPayments: payload.paymentMethod === 'TRANSFER' ? ['bank_transfer'] : ['other_qris'],
   });
 }
 

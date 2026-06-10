@@ -116,16 +116,7 @@ function mapPaymentMethod(method?: string | null): OrderPaymentMethod {
 export function extractMidtransToken(payload: unknown): string | undefined {
   const root = payload as Record<string, unknown> | null | undefined;
   const payment = root?.payment as Record<string, unknown> | null | undefined;
-  const candidates = [
-    payment?.snapToken,
-    payment?.midtransToken,
-    payment?.paymentToken,
-    payment?.token,
-    root?.snapToken,
-    root?.midtransToken,
-    root?.paymentToken,
-    root?.token,
-  ];
+  const candidates = [payment?.snapToken, payment?.midtransToken, payment?.paymentToken, payment?.token, root?.snapToken, root?.midtransToken, root?.paymentToken, root?.token];
 
   const token = candidates.find((value) => typeof value === 'string' && value.trim());
   return typeof token === 'string' ? token : undefined;
@@ -218,6 +209,20 @@ export async function getTransactionReceipt(id: string) {
 }
 
 export async function createOnlineCheckout(payload: OnlineCheckoutPayload) {
+  console.log({
+    items: payload.items,
+    customerId: payload.customerId,
+    orderType: payload.orderType,
+    tableNumber: payload.orderType === 'DINE_IN' ? payload.tableNumber : null,
+    notes: payload.notes || undefined,
+    customer: payload.customer,
+    enabledPayments: payload.enabledPayments ?? ['other_qris', 'bank_transfer'],
+    callbacks: payload.callbacks ?? {
+      finish: `${window.location.origin}/customer/orders`,
+      unfinish: `${window.location.origin}/customer/checkout`,
+      error: `${window.location.origin}/customer/checkout`,
+    },
+  });
   const { data } = await api.post<BackendTransaction>('/transactions/checkout', {
     items: payload.items,
     customerId: payload.customerId,
@@ -225,7 +230,7 @@ export async function createOnlineCheckout(payload: OnlineCheckoutPayload) {
     tableNumber: payload.orderType === 'DINE_IN' ? payload.tableNumber : null,
     notes: payload.notes || undefined,
     customer: payload.customer,
-    enabledPayments: payload.enabledPayments ?? ['qris', 'bank_transfer'],
+    enabledPayments: payload.enabledPayments ?? ['other_qris', 'bank_transfer'],
     callbacks: payload.callbacks ?? {
       finish: `${window.location.origin}/customer/orders`,
       unfinish: `${window.location.origin}/customer/checkout`,
@@ -237,6 +242,18 @@ export async function createOnlineCheckout(payload: OnlineCheckoutPayload) {
 }
 
 export async function createOfflineTransaction(payload: OfflinePosPayload) {
+  console.log({
+    items: payload.items,
+    customerId: payload.customerId || undefined,
+    customerName: payload.customerName,
+    customerPhone: payload.customerPhone,
+    orderType: payload.orderType,
+    tableNumber: payload.orderType === 'DINE_IN' ? payload.tableNumber : null,
+    notes: payload.notes || undefined,
+    paymentMethod: payload.paymentMethod,
+    cashReceived: payload.paymentMethod === 'CASH' ? payload.cashReceived : undefined,
+    referenceNumber: payload.referenceNumber || null,
+  });
   const { data } = await api.post<BackendTransaction>('/transactions/offline', {
     items: payload.items,
     customerId: payload.customerId || undefined,
