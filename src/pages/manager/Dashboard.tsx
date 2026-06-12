@@ -28,7 +28,8 @@ import SalesChart from "../../components/dashboard/SalesChart";
 import SummaryCard from "../../components/dashboard/SummaryCard";
 import ProductionChart from "../../components/dashboard/ProductionChart";
 import Sidebar from "../../components/layout/Sidebar";
-import { getManagerDashboard } from "../../services/dashboard.service";
+import { createEmptyDashboard, getManagerDashboard } from "../../services/dashboard.service";
+import { getApiErrorMessage } from "../../services/error";
 import { exportDashboardFile, type DashboardExportFormat } from "../../utils/dashboardExport";
 import type {
   DashboardData,
@@ -157,13 +158,23 @@ export default function Dashboard() {
       setActionLoading(true);
     }
 
-    const data = await getManagerDashboard(selectedPeriod);
-    setDashboard(data);
-    setLoading(false);
-    setActionLoading(false);
+    try {
+      const data = await getManagerDashboard(selectedPeriod);
+      setDashboard(data);
 
-    if (mode === "refresh") {
-      showToast("success", "Dashboard diperbarui", "Data manager berhasil dimuat ulang dari service dashboard.");
+      if (mode === "refresh") {
+        showToast("success", "Dashboard diperbarui", "Data manager berhasil dimuat ulang dari backend.");
+      }
+    } catch (error) {
+      setDashboard((current) => current ?? createEmptyDashboard());
+      showToast(
+        "error",
+        "Dashboard gagal dimuat",
+        getApiErrorMessage(error, "Tidak dapat mengambil data dashboard manager dari backend."),
+      );
+    } finally {
+      setLoading(false);
+      setActionLoading(false);
     }
   }, [showToast]);
 

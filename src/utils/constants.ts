@@ -1,7 +1,6 @@
 const resolvedApiUrl = import.meta.env.VITE_API_URL?.trim();
 
 export const API_URL = resolvedApiUrl ?? '';
-export const HAS_API_URL = Boolean(resolvedApiUrl);
 export const ROLES = {
   MANAGER: 'MANAGER',
   STAFF: 'STAFF',

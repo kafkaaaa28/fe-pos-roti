@@ -1,6 +1,5 @@
 import api from './api';
-import { HAS_API_URL } from '../utils/constants';
-import { mockDashboardByPeriod } from '../data/mockDashboard';
+import { API_URL } from '../utils/constants';
 import type { DashboardData, DashboardPeriod } from '../types/dashboard';
 
 type BackendDashboardSummary = {
@@ -48,7 +47,7 @@ type BackendDashboardSummary = {
   }>;
 };
 
-function emptyDashboard(): DashboardData {
+export function createEmptyDashboard(): DashboardData {
   return {
     generatedAt: new Date().toISOString(),
     summary: {
@@ -77,7 +76,7 @@ function emptyDashboard(): DashboardData {
 }
 
 function adaptBackendSummary(payload: BackendDashboardSummary): DashboardData {
-  const base = emptyDashboard();
+  const base = createEmptyDashboard();
   const summary = payload.summary ?? {};
   const salesChart =
     payload.recentTransactions?.map((trx) => ({
@@ -155,27 +154,16 @@ const normalizeDashboardResponse = (payload: unknown): DashboardData => {
     return adaptBackendSummary(data as BackendDashboardSummary);
   }
 
-  return (data as DashboardData) || emptyDashboard();
+  return (data as DashboardData) || createEmptyDashboard();
 };
 
 export async function getManagerDashboard(period: DashboardPeriod): Promise<DashboardData> {
-  if (!HAS_API_URL) {
-    return mockDashboardByPeriod[period];
+  if (!API_URL) {
+    throw new Error('VITE_API_URL belum dikonfigurasi pada environment frontend.');
   }
 
-  try {
-    const response = await api.get('/dashboard/manager', { params: { period } });
-    const dashboard = normalizeDashboardResponse(response.data);
-
-    if (dashboard.salesChart.length > 0 || dashboard.productionChart.length > 0 || dashboard.recentTransactions.length > 0 || dashboard.recentProductions.length > 0) {
-      return dashboard;
-    }
-
-    return mockDashboardByPeriod[period];
-  } catch (error) {
-    console.warn('Falling back to mock manager dashboard data.', error);
-    return mockDashboardByPeriod[period];
-  }
+  const response = await api.get('/dashboard/manager', { params: { period } });
+  return normalizeDashboardResponse(response.data);
 }
 
 export async function exportManagerDashboard(period: DashboardPeriod): Promise<{ fileName: string; message: string }> {

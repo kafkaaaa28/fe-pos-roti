@@ -1,6 +1,5 @@
 import api from './api';
-import { HAS_API_URL } from '../utils/constants';
-import { mockStaffDashboardByPeriod } from '../data/mockStaff';
+import { API_URL } from '../utils/constants';
 import type { StaffDashboardData, StaffPeriod, StaffRecipeOverview } from '../types/staff';
 import { createManagerMaterial, deleteManagerMaterial, listManagerInventory, listManagerMaterials, listManagerProducts, listManagerProductions, listManagerRecipes, listManagerStockMovements, updateManagerMaterial } from './manager.service';
 import type { ManagerProduction, ManagerStockMovement, MaterialPayload, ServiceResponse, StockMovementType } from '../types/manager';
@@ -36,7 +35,7 @@ type BackendDashboardSummary = {
   };
 };
 
-function emptyStaffDashboard(period: StaffPeriod): StaffDashboardData {
+export function createEmptyStaffDashboard(period: StaffPeriod): StaffDashboardData {
   return {
     period,
     summary: {
@@ -58,7 +57,7 @@ function emptyStaffDashboard(period: StaffPeriod): StaffDashboardData {
 }
 
 function adaptBackendSummary(payload: BackendDashboardSummary, period: StaffPeriod): StaffDashboardData {
-  const empty = emptyStaffDashboard(period);
+  const empty = createEmptyStaffDashboard(period);
   const lowItems = payload.lowStock?.items ?? [];
   const productionTrend = Object.values(
     (payload.recentProductions ?? []).reduce(
@@ -136,29 +135,12 @@ function adaptBackendSummary(payload: BackendDashboardSummary, period: StaffPeri
 }
 
 export async function getStaffDashboard(period: StaffPeriod): Promise<StaffDashboardData> {
-  if (!HAS_API_URL) {
-    return mockStaffDashboardByPeriod[period];
+  if (!API_URL) {
+    throw new Error('VITE_API_URL belum dikonfigurasi pada environment frontend.');
   }
 
-  try {
-    const response = await api.get<BackendDashboardSummary>('/dashboard/staff', { params: { period } });
-    const dashboard = adaptBackendSummary(response.data, period);
-
-    if (
-      dashboard.productionTrend.length > 0 ||
-      dashboard.productionByProduct.length > 0 ||
-      dashboard.materialAlerts.length > 0 ||
-      dashboard.recentProductions.length > 0 ||
-      dashboard.stockMovements.length > 0
-    ) {
-      return dashboard;
-    }
-
-    return mockStaffDashboardByPeriod[period];
-  } catch (error) {
-    console.warn('Falling back to mock staff dashboard data.', error);
-    return mockStaffDashboardByPeriod[period];
-  }
+  const response = await api.get<BackendDashboardSummary>('/dashboard/staff', { params: { period } });
+  return adaptBackendSummary(response.data, period);
 }
 
 export const listStaffProducts = listManagerProducts;

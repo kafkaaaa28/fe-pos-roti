@@ -10,7 +10,8 @@ import Toast, { type ToastTone } from '../../components/common/Toast';
 import SummaryCard from '../../components/dashboard/SummaryCard';
 import Sidebar from '../../components/layout/Sidebar';
 import { useAuth } from '../../contexts/AuthContext';
-import { getStaffDashboard } from '../../services/staff.service';
+import { getApiErrorMessage } from '../../services/error';
+import { createEmptyStaffDashboard, getStaffDashboard } from '../../services/staff.service';
 import type { StaffDashboardData, StaffMaterialAlert, StaffPeriod, StaffProductionQueue, StaffProductionRecord, StaffRecipeOverview, StaffStockMovement, StaffStockStatus, StaffMovementType, StaffProductionStatus } from '../../types/staff';
 import { formatDate, formatNumber } from '../../utils/formatter';
 
@@ -178,13 +179,23 @@ export default function StaffDashboard() {
         setActionLoading(true);
       }
 
-      const data = await getStaffDashboard(selectedPeriod);
-      setDashboard(data);
-      setLoading(false);
-      setActionLoading(false);
+      try {
+        const data = await getStaffDashboard(selectedPeriod);
+        setDashboard(data);
 
-      if (mode === 'refresh') {
-        showToast('success', 'Dashboard diperbarui', 'Data produksi, bahan baku, recipe, dan stock movement berhasil dimuat ulang.');
+        if (mode === 'refresh') {
+          showToast('success', 'Dashboard diperbarui', 'Data staff berhasil dimuat ulang dari backend.');
+        }
+      } catch (error) {
+        setDashboard((current) => current ?? createEmptyStaffDashboard(selectedPeriod));
+        showToast(
+          'error',
+          'Dashboard gagal dimuat',
+          getApiErrorMessage(error, 'Tidak dapat mengambil data dashboard staff dari backend.'),
+        );
+      } finally {
+        setLoading(false);
+        setActionLoading(false);
       }
     },
     [showToast],
@@ -328,8 +339,6 @@ export default function StaffDashboard() {
   if (loading || !dashboard) {
     return <Loading message="Memuat dashboard staff..." />;
   }
-  console.log(`tes`, dashboard?.productionTrend);
-
   return (
     <div className="flex min-h-dvh bg-dark">
       <Sidebar />
