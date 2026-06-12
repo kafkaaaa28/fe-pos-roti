@@ -1,4 +1,6 @@
 import api from './api';
+import { HAS_API_URL } from '../utils/constants';
+import { mockDashboardByPeriod } from '../data/mockDashboard';
 import type { DashboardData, DashboardPeriod } from '../types/dashboard';
 
 type BackendDashboardSummary = {
@@ -157,8 +159,23 @@ const normalizeDashboardResponse = (payload: unknown): DashboardData => {
 };
 
 export async function getManagerDashboard(period: DashboardPeriod): Promise<DashboardData> {
-  const response = await api.get('/dashboard/manager', { params: { period } });
-  return normalizeDashboardResponse(response.data);
+  if (!HAS_API_URL) {
+    return mockDashboardByPeriod[period];
+  }
+
+  try {
+    const response = await api.get('/dashboard/manager', { params: { period } });
+    const dashboard = normalizeDashboardResponse(response.data);
+
+    if (dashboard.salesChart.length > 0 || dashboard.productionChart.length > 0 || dashboard.recentTransactions.length > 0 || dashboard.recentProductions.length > 0) {
+      return dashboard;
+    }
+
+    return mockDashboardByPeriod[period];
+  } catch (error) {
+    console.warn('Falling back to mock manager dashboard data.', error);
+    return mockDashboardByPeriod[period];
+  }
 }
 
 export async function exportManagerDashboard(period: DashboardPeriod): Promise<{ fileName: string; message: string }> {

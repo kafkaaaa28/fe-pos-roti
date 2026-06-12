@@ -7,6 +7,26 @@ interface SalesChartProps {
 }
 
 export default function SalesChart({ data }: SalesChartProps) {
+  if (data.length === 0) {
+    return (
+      <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-surface p-4 sm:p-6">
+        <div className="mb-5 flex min-w-0 flex-col items-start justify-between gap-3 sm:mb-6 sm:flex-row sm:gap-4">
+          <div className="min-w-0">
+            <h3 className="font-semibold text-white">Grafik Penjualan</h3>
+            <p className="mt-1 text-xs text-white/40">Belum ada data penjualan untuk periode ini</p>
+          </div>
+          <span className="shrink-0 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/50">Empty state</span>
+        </div>
+        <div className="flex h-44 items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/[0.02] text-center">
+          <div>
+            <p className="text-sm font-semibold text-white/70">Data chart kosong</p>
+            <p className="mt-1 text-xs text-white/40">Coba ganti periode atau pastikan backend dashboard mengirim transaksi.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const maxSales = Math.max(...data.map((item) => item.sales), 1);
 
   return (

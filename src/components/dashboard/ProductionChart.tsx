@@ -6,6 +6,23 @@ interface ProductionChartProps {
 }
 
 export default function ProductionChart({ data }: ProductionChartProps) {
+  if (data.length === 0) {
+    return (
+      <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-surface p-4 sm:p-6">
+        <div className="mb-5 sm:mb-6">
+          <h3 className="font-semibold text-white">Produksi per Produk</h3>
+          <p className="mt-1 text-xs text-white/40">Belum ada data produksi untuk periode ini</p>
+        </div>
+        <div className="flex h-44 items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/[0.02] text-center">
+          <div>
+            <p className="text-sm font-semibold text-white/70">Data chart kosong</p>
+            <p className="mt-1 text-xs text-white/40">Backend belum mengirim riwayat produksi atau masih belum ada transaksi produksi.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const maxQuantity = Math.max(...data.map((item) => item.quantity), 1);
 
   return (
