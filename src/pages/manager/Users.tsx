@@ -38,6 +38,7 @@ export default function Users() {
   const activeCount = users.filter((item) => item.status === "ACTIVE").length;
   const staffCount = users.filter((item) => item.role === "STAFF").length;
   const cashierCount = users.filter((item) => item.role === "KASIR").length;
+  const customerCount = users.filter((item) => item.role === "CUSTOMER").length;
 
   const openAdd = () => { setSelected(null); setForm(EMPTY_FORM); setMode("add"); };
   const openEdit = (item: ManagerSystemUser) => { setSelected(item); setForm({ name: item.name, email: item.email, phone: item.phone || "", role: item.role, status: item.status, password: "" }); setMode("edit"); };
@@ -106,17 +107,18 @@ export default function Users() {
   return (
     <ManagerPageShell
       title="User Management"
-      subtitle="Kelola akun internal sistem: Manager, Staff, dan Kasir. Data phone ikut dikirim ke backend. Customer dipisahkan sebagai tabel pelanggan/online order, bukan user operasional."
+      subtitle="Kelola seluruh akun sistem: Manager, Staff, Kasir, dan Customer. Data phone ikut dikirim ke backend agar daftar user management konsisten dengan database."
       badge="Manager • Kelola User"
       action={<Button onClick={openAdd} className="inline-flex items-center gap-2"><UserPlus size={16} /> Tambah User</Button>}
     >
       <Toast open={toast.open} tone={toast.tone} title={toast.title} message={toast.message} />
 
-      <div className="mb-5 grid gap-4 md:grid-cols-4">
+      <div className="mb-5 grid gap-4 md:grid-cols-5">
         <div className="rounded-2xl border border-white/10 bg-surface p-4"><p className="text-xs text-white/40">Total User</p><p className="mt-1 text-2xl font-bold text-white">{formatNumber(users.length)}</p></div>
         <div className="rounded-2xl border border-white/10 bg-surface p-4"><p className="text-xs text-white/40">Aktif</p><p className="mt-1 text-2xl font-bold text-emerald-300">{formatNumber(activeCount)}</p></div>
         <div className="rounded-2xl border border-white/10 bg-surface p-4"><p className="text-xs text-white/40">Staff</p><p className="mt-1 text-2xl font-bold text-mint">{formatNumber(staffCount)}</p></div>
         <div className="rounded-2xl border border-white/10 bg-surface p-4"><p className="text-xs text-white/40">Kasir</p><p className="mt-1 text-2xl font-bold text-accent">{formatNumber(cashierCount)}</p></div>
+        <div className="rounded-2xl border border-white/10 bg-surface p-4"><p className="text-xs text-white/40">Customer</p><p className="mt-1 text-2xl font-bold text-sky-300">{formatNumber(customerCount)}</p></div>
       </div>
 
       <div className="mb-5 rounded-2xl border border-white/10 bg-surface p-4">
@@ -144,7 +146,7 @@ export default function Users() {
           <input value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} type="email" className="w-full rounded-xl border border-white/10 bg-dark px-4 py-3 text-sm text-white outline-none focus:border-primary" placeholder="Email user" />
           <input value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} className="w-full rounded-xl border border-white/10 bg-dark px-4 py-3 text-sm text-white outline-none focus:border-primary" placeholder="No HP / WhatsApp" />
           <div className="grid gap-3 md:grid-cols-2">
-            <select value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value as SystemRole }))} className="rounded-xl border border-white/10 bg-dark px-4 py-3 text-sm text-white outline-none focus:border-primary"><option value="MANAGER">MANAGER</option><option value="STAFF">STAFF</option><option value="KASIR">KASIR</option></select>
+            <select value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value as SystemRole }))} className="rounded-xl border border-white/10 bg-dark px-4 py-3 text-sm text-white outline-none focus:border-primary"><option value="MANAGER">MANAGER</option><option value="STAFF">STAFF</option><option value="KASIR">KASIR</option><option value="CUSTOMER">CUSTOMER</option></select>
             <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as SystemUserStatus }))} className="rounded-xl border border-white/10 bg-dark px-4 py-3 text-sm text-white outline-none focus:border-primary"><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select>
           </div>
           {mode === "add" && <input value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} type="password" className="w-full rounded-xl border border-white/10 bg-dark px-4 py-3 text-sm text-white outline-none focus:border-primary" placeholder="Password awal" />}

@@ -15,6 +15,7 @@ export function RolePill({ role }: { role: SystemRole }) {
     MANAGER: "bg-accent/20 text-accent",
     STAFF: "bg-mint/20 text-mint",
     KASIR: "bg-cream/20 text-cream",
+    CUSTOMER: "bg-sky-900/30 text-sky-300",
   };
   return <span className={`${base} ${colors[role]}`}>{role}</span>;
 }

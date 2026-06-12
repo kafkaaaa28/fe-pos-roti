@@ -4,7 +4,7 @@ export type ProductStatus = 'ACTIVE' | 'INACTIVE';
 export type InventoryStatus = 'AMAN' | 'MENIPIS' | 'HABIS';
 export type InventoryItemType = 'PRODUCT' | 'MATERIAL';
 export type StockMovementType = 'IN' | 'OUT' | 'ADJUSTMENT';
-export type SystemRole = 'MANAGER' | 'STAFF' | 'KASIR';
+export type SystemRole = 'MANAGER' | 'STAFF' | 'KASIR' | 'CUSTOMER';
 export type SystemUserStatus = 'ACTIVE' | 'INACTIVE';
 export type ProductionStatus = 'SELESAI' | 'DIPROSES' | 'DIBATALKAN';
 

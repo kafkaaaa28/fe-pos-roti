@@ -180,8 +180,7 @@ function mapBackendStockMovement(item: BackendStockMovement): ManagerStockMoveme
   };
 }
 
-function mapBackendUser(item: BackendUser): ManagerSystemUser | null {
-  if (item.role === 'CUSTOMER') return null;
+function mapBackendUser(item: BackendUser): ManagerSystemUser {
   return {
     id: item.id,
     name: item.name,
@@ -461,9 +460,7 @@ export async function listManagerStockMovements() {
 
 export async function listManagerUsers() {
   const { data } = await api.get<BackendPagination<BackendUser>>('/users', { params: { limit: 100 } });
-  const mapped = pageItems(data)
-    .map(mapBackendUser)
-    .filter((item): item is ManagerSystemUser => Boolean(item));
+  const mapped = pageItems(data).map(mapBackendUser);
   return makeResponse('Data user berhasil dimuat dari backend', mapped);
 }
 
@@ -475,16 +472,7 @@ export async function createManagerUser(payload: UserPayload) {
     password: payload.password,
     role: payload.role,
   });
-  const created = mapBackendUser(data) ?? {
-    id: data.id,
-    name: data.name,
-    email: data.email,
-    phone: data.phone ?? payload.phone,
-    role: data.role === 'CUSTOMER' ? 'STAFF' : data.role,
-    status: 'ACTIVE',
-    createdAt: data.createdAt,
-    updatedAt: data.updatedAt ?? data.createdAt,
-  };
+  const created = mapBackendUser(data);
   return makeResponse('User berhasil ditambahkan dari backend', created);
 }
 
@@ -497,15 +485,9 @@ export async function updateManagerUser(id: string, payload: UserPayload) {
   };
   if (payload.password) body.password = payload.password;
   const { data } = await api.patch<BackendUser>(`/users/${id}`, body);
-  const updated = mapBackendUser(data) ?? {
-    id: data.id,
-    name: data.name,
-    email: data.email,
-    phone: data.phone ?? payload.phone,
-    role: data.role === 'CUSTOMER' ? 'STAFF' : data.role,
+  const updated = {
+    ...mapBackendUser(data),
     status: payload.status,
-    createdAt: data.createdAt,
-    updatedAt: data.updatedAt ?? nowIso(),
   };
   return makeResponse('User berhasil diperbarui dari backend', updated);
 }
