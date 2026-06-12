@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Edit, Eye, Plus, Trash2 } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
@@ -25,14 +25,15 @@ export default function Recipes() {
   const [mode, setMode] = useState<'add' | 'edit' | 'detail' | 'delete' | null>(null);
   const [selected, setSelected] = useState<ManagerRecipe | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState({ open: false, tone: 'success' as ToastTone, title: '', message: '' });
 
-  const showToast = (tone: ToastTone, title: string, message: string) => {
+  const showToast = useCallback((tone: ToastTone, title: string, message: string) => {
     setToast({ open: true, tone, title, message });
     window.setTimeout(() => setToast((current) => ({ ...current, open: false })), 2300);
-  };
+  }, []);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     const [recipeResult, productResult, materialResult] = await Promise.allSettled([
       listManagerRecipes(),
       listManagerProducts(),
@@ -59,11 +60,11 @@ export default function Recipes() {
       showToast('error', 'Bahan gagal dimuat', getApiErrorMessage(materialResult.reason));
       setMaterials([]);
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
     void loadData();
-  }, []);
+  }, [loadData]);
 
   const filtered = useMemo(() => recipes.filter((item) => [item.id, item.productName, formatMaterials(item.materials)].join(' ').toLowerCase().includes(search.toLowerCase())), [recipes, search]);
 
@@ -119,24 +120,41 @@ export default function Recipes() {
       showToast('error', 'Recipe belum valid', 'Pilih produk dan minimal satu bahan dengan jumlah lebih dari 0.');
       return;
     }
-    if (mode === 'add') {
-      await createManagerRecipe(payload);
-      showToast('success', 'Recipe ditambahkan', `BOM ${payload.productName} berhasil ditambahkan.`);
+
+    setSubmitting(true);
+    try {
+      if (mode === 'add') {
+        await createManagerRecipe(payload);
+        showToast('success', 'Recipe ditambahkan', `BOM ${payload.productName} berhasil ditambahkan.`);
+      }
+
+      if (mode === 'edit' && selected) {
+        await updateManagerRecipe(selected.id, payload);
+        showToast('success', 'Recipe diperbarui', `BOM ${payload.productName} berhasil diperbarui.`);
+      }
+
+      closeModal();
+      await loadData();
+    } catch (error) {
+      showToast('error', 'Simpan recipe gagal', getApiErrorMessage(error));
+    } finally {
+      setSubmitting(false);
     }
-    if (mode === 'edit' && selected) {
-      await updateManagerRecipe(selected.id, payload);
-      showToast('success', 'Recipe diperbarui', `BOM ${payload.productName} berhasil diperbarui.`);
-    }
-    closeModal();
-    await loadData();
   };
 
   const handleDelete = async () => {
     if (!selected) return;
-    await deleteManagerRecipe(selected.id);
-    showToast('success', 'Recipe dihapus', `BOM ${selected.productName} berhasil dihapus.`);
-    closeModal();
-    await loadData();
+    setSubmitting(true);
+    try {
+      await deleteManagerRecipe(selected.id);
+      showToast('success', 'Recipe dihapus', `BOM ${selected.productName} berhasil dihapus.`);
+      closeModal();
+      await loadData();
+    } catch (error) {
+      showToast('error', 'Gagal menghapus recipe', getApiErrorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -254,8 +272,8 @@ export default function Recipes() {
           <Button variant="ghost" onClick={addLine} className="w-full">
             Tambah Baris Bahan
           </Button>
-          <Button onClick={() => void handleSubmit()} className="w-full">
-            {mode === 'add' ? 'Simpan Recipe' : 'Simpan Perubahan'}
+          <Button onClick={() => void handleSubmit()} className="w-full" disabled={submitting}>
+            {submitting ? 'Menyimpan...' : mode === 'add' ? 'Simpan Recipe' : 'Simpan Perubahan'}
           </Button>
         </div>
       </Modal>
@@ -296,11 +314,11 @@ export default function Recipes() {
           Yakin ingin menghapus recipe <span className="font-semibold text-white">{selected?.productName}</span>?
         </p>
         <div className="mt-5 flex gap-3">
-          <Button variant="ghost" className="flex-1" onClick={closeModal}>
+          <Button variant="ghost" className="flex-1" onClick={closeModal} disabled={submitting}>
             Batal
           </Button>
-          <Button variant="danger" className="flex-1" onClick={() => void handleDelete()}>
-            Hapus
+          <Button variant="danger" className="flex-1" onClick={() => void handleDelete()} disabled={submitting}>
+            {submitting ? 'Menghapus...' : 'Hapus'}
           </Button>
         </div>
       </Modal>

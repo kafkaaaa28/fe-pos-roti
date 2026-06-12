@@ -54,7 +54,7 @@ export interface ManagerProduction {
   id: string;
   productId: string;
   productName: string;
-  userId: string;
+  userId: string | null;
   userName: string;
   quantity: number;
   notes: string;

@@ -4,6 +4,7 @@ import { Edit, Eye, Loader2, Plus, Search, Trash2 } from "lucide-react";
 import Sidebar from "../../components/layout/Sidebar";
 import Modal from "../../components/common/Modal";
 import Toast, { type ToastTone } from "../../components/common/Toast";
+import { getApiErrorMessage } from "../../services/error";
 import {
   createManagerMaterial,
   deleteManagerMaterial,
@@ -45,7 +46,7 @@ export default function Materials() {
       const response = await listManagerMaterials();
       setMaterials(response.data);
     } catch (error) {
-      showToast("error", "Gagal memuat bahan", error instanceof Error ? error.message : "Coba ulangi kembali.");
+      showToast("error", "Gagal memuat bahan", getApiErrorMessage(error, "Coba ulangi kembali."));
     } finally {
       setLoading(false);
     }
@@ -117,7 +118,7 @@ export default function Materials() {
       closeModal();
       await loadMaterials();
     } catch (error) {
-      showToast("error", "Gagal menyimpan bahan", error instanceof Error ? error.message : "Coba ulangi kembali.");
+      showToast("error", "Gagal menyimpan bahan", getApiErrorMessage(error, "Coba ulangi kembali."));
     } finally {
       setSubmitting(false);
     }
@@ -132,7 +133,7 @@ export default function Materials() {
       closeModal();
       await loadMaterials();
     } catch (error) {
-      showToast("error", "Gagal menghapus bahan", error instanceof Error ? error.message : "Coba ulangi kembali.");
+      showToast("error", "Gagal menghapus bahan", getApiErrorMessage(error, "Coba ulangi kembali."));
     } finally {
       setSubmitting(false);
     }

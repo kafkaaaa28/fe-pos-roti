@@ -1,32 +1,26 @@
-import api from "./api";
-import type { StaffDashboardData, StaffPeriod } from "../types/staff";
-import {
-  createManagerMaterial,
-  deleteManagerMaterial,
-  listManagerInventory,
-  listManagerMaterials,
-  listManagerProducts,
-  listManagerProductions,
-  listManagerRecipes,
-  listManagerStockMovements,
-  updateManagerMaterial,
-} from "./manager.service";
-import type {
-  ManagerProduction,
-  ManagerStockMovement,
-  MaterialPayload,
-  ServiceResponse,
-  StockMovementType,
-} from "../types/manager";
+import api from './api';
+import type { StaffDashboardData, StaffPeriod, StaffRecipeOverview } from '../types/staff';
+import { createManagerMaterial, deleteManagerMaterial, listManagerInventory, listManagerMaterials, listManagerProducts, listManagerProductions, listManagerRecipes, listManagerStockMovements, updateManagerMaterial } from './manager.service';
+import type { ManagerProduction, ManagerStockMovement, MaterialPayload, ServiceResponse, StockMovementType } from '../types/manager';
 
 type BackendDashboardSummary = {
   summary?: {
-    totalProduction?: number;
+    totalProductionToday?: number;
     activeRecipes?: number;
+    lowStockCount?: number;
     stockMovementsToday?: number;
     pendingProduction?: number;
     completedProduction?: number;
   };
+
+  recentProductions?: Array<{
+    id: string;
+    quantity: number;
+    notes?: string;
+    product: {
+      name: string;
+    };
+  }>;
   lowStock?: {
     total?: number;
     items?: Array<{
@@ -35,7 +29,7 @@ type BackendDashboardSummary = {
       stock?: number;
       minStock?: number;
       unit?: string;
-      stockStatus?: "AMAN" | "MENIPIS" | "HABIS";
+      stockStatus?: 'AMAN' | 'MENIPIS' | 'HABIS';
     }>;
   };
 };
@@ -64,32 +58,83 @@ function emptyStaffDashboard(period: StaffPeriod): StaffDashboardData {
 function adaptBackendSummary(payload: BackendDashboardSummary, period: StaffPeriod): StaffDashboardData {
   const empty = emptyStaffDashboard(period);
   const lowItems = payload.lowStock?.items ?? [];
+  const productionTrend = Object.values(
+    (payload.recentProductions ?? []).reduce(
+      (acc, item) => {
+        const name = item.product.name;
+
+        if (!acc[name]) {
+          acc[name] = {
+            label: name,
+            quantity: 0,
+          };
+        }
+
+        acc[name].quantity += Number(item.quantity);
+
+        return acc;
+      },
+      {} as Record<string, { label: string; quantity: number }>,
+    ),
+  );
+  const productionByProduct = Object.values(
+    (payload.recentProductions ?? []).reduce(
+      (acc, item) => {
+        const productName = item.product.name;
+
+        if (!acc[productName]) {
+          acc[productName] = {
+            productName,
+            quantity: 0,
+          };
+        }
+
+        acc[productName].quantity += Number(item.quantity);
+
+        return acc;
+      },
+      {} as Record<string, { productName: string; quantity: number }>,
+    ),
+  );
+
+  const recipeOverviews: StaffRecipeOverview[] = (payload.recentProductions ?? []).map((item) => ({
+    id: item.id,
+    productId: item.id,
+    productName: item.product.name,
+    materialCount: 1,
+    estimatedOutput: Number(item.quantity),
+    readiness: 'AMAN',
+    note: item.notes ?? 'Produksi terbaru',
+  }));
 
   return {
     ...empty,
     summary: {
       ...empty.summary,
-      todayProduction: Number(payload.summary?.totalProduction ?? 0),
+      todayProduction: Number(payload.summary?.totalProductionToday ?? 0),
       activeRecipes: Number(payload.summary?.activeRecipes ?? 0),
       stockMovementsToday: Number(payload.summary?.stockMovementsToday ?? 0),
-      pendingProduction: Number(payload.summary?.pendingProduction ?? 0),
+      pendingProduction: Number(payload.summary?.lowStockCount ?? 0),
       completedProduction: Number(payload.summary?.completedProduction ?? 0),
       materialAlerts: Number(payload.lowStock?.total ?? lowItems.length),
     },
+    productionTrend,
+    productionByProduct,
+    recipeOverviews,
     materialAlerts: lowItems.map((item) => ({
-      id: item.id ?? item.name ?? "MAT",
-      name: item.name ?? "Bahan Baku",
+      id: item.id ?? item.name ?? 'MAT',
+      name: item.name ?? 'Bahan Baku',
       stock: Number(item.stock ?? 0),
       minStock: Number(item.minStock ?? 0),
-      unit: item.unit ?? "unit",
-      status: item.stockStatus ?? "MENIPIS",
-      suggestedAction: "Cek stok dan lakukan restock bila diperlukan.",
+      unit: item.unit ?? 'unit',
+      status: item.stockStatus ?? 'MENIPIS',
+      suggestedAction: 'Cek stok dan lakukan restock bila diperlukan.',
     })),
   };
 }
 
 export async function getStaffDashboard(period: StaffPeriod): Promise<StaffDashboardData> {
-  const response = await api.get<BackendDashboardSummary>("/dashboard/staff", { params: { period } });
+  const response = await api.get<BackendDashboardSummary>('/dashboard/staff', { params: { period } });
   return adaptBackendSummary(response.data, period);
 }
 
@@ -122,12 +167,12 @@ function mapStaffProduction(item: BackendProductionCreate): ManagerProduction {
   return {
     id: item.id,
     productId: item.productId,
-    productName: item.product?.name ?? "Produk",
+    productName: item.product?.name ?? 'Produk',
     userId: item.userId,
-    userName: item.user?.name ?? "Staff",
+    userName: item.user?.name ?? 'Staff',
     quantity: Number(item.quantity),
-    notes: item.notes ?? "",
-    status: "SELESAI",
+    notes: item.notes ?? '',
+    status: 'SELESAI',
     createdAt: item.createdAt,
   };
 }
@@ -137,56 +182,51 @@ export async function listStaffProductions() {
 }
 
 export async function createStaffProduction(payload: { productId: string; quantity: number; notes?: string }) {
-  const { data } = await api.post<BackendProductionCreate>("/productions", {
+  const { data } = await api.post<BackendProductionCreate>('/productions', {
     productId: payload.productId,
     quantity: payload.quantity,
     notes: payload.notes,
   });
-  return makeStaffResponse("Produksi berhasil disimpan ke backend", mapStaffProduction(data));
+  return makeStaffResponse('Produksi berhasil disimpan ke backend', mapStaffProduction(data));
 }
 
-export async function createStaffStockMovement(payload: {
-  materialId: string;
-  type: StockMovementType;
-  quantity: number;
-  description: string;
-}) {
+export async function createStaffStockMovement(payload: { materialId: string; type: StockMovementType; quantity: number; description: string }) {
   const { data } = await api.post<{
     id: string;
-    itemType: "PRODUCT" | "MATERIAL";
+    itemType: 'PRODUCT' | 'MATERIAL';
     itemId: string;
     type: StockMovementType;
     quantity: number | string;
     description?: string | null;
     unit?: string | null;
-    sourceModule?: "MATERIAL" | "PRODUCTION" | "POS" | "ONLINE_ORDER" | "ADJUSTMENT" | null;
+    sourceModule?: 'MATERIAL' | 'PRODUCTION' | 'POS' | 'ONLINE_ORDER' | 'ADJUSTMENT' | null;
     createdBy?: string | null;
     createdAt: string;
     product?: { name?: string | null } | null;
     material?: { name?: string | null; unit?: string | null } | null;
-  }>("/stock-movements", {
-    itemType: "MATERIAL",
+  }>('/stock-movements', {
+    itemType: 'MATERIAL',
     itemId: payload.materialId,
     type: payload.type,
     quantity: payload.quantity,
     description: payload.description,
-    sourceModule: payload.type === "ADJUSTMENT" ? "ADJUSTMENT" : "MATERIAL",
-    createdBy: "Staff",
+    sourceModule: payload.type === 'ADJUSTMENT' ? 'ADJUSTMENT' : 'MATERIAL',
+    createdBy: 'Staff',
   });
 
   const movement: ManagerStockMovement = {
     id: data.id,
     itemId: data.itemId,
-    itemName: data.material?.name ?? "Bahan Baku",
+    itemName: data.material?.name ?? 'Bahan Baku',
     itemType: data.itemType,
     type: data.type,
     quantity: Number(data.quantity),
-    unit: data.unit ?? data.material?.unit ?? "unit",
+    unit: data.unit ?? data.material?.unit ?? 'unit',
     description: data.description ?? payload.description,
     createdAt: data.createdAt,
-    createdBy: data.createdBy ?? "Staff",
-    sourceModule: data.sourceModule ?? (payload.type === "ADJUSTMENT" ? "ADJUSTMENT" : "MATERIAL"),
+    createdBy: data.createdBy ?? 'Staff',
+    sourceModule: data.sourceModule ?? (payload.type === 'ADJUSTMENT' ? 'ADJUSTMENT' : 'MATERIAL'),
   };
 
-  return makeStaffResponse("Stock movement berhasil disimpan ke backend", movement);
+  return makeStaffResponse('Stock movement berhasil disimpan ke backend', movement);
 }

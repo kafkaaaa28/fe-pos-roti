@@ -64,7 +64,7 @@ type BackendRecipe = {
 type BackendProduction = {
   id: string;
   productId: string;
-  userId: string;
+  userId: string | null;
   quantity: number | string;
   notes?: string | null;
   createdAt: string;

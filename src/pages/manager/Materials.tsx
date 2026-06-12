@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Edit, Eye, Plus, Trash2 } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
@@ -7,6 +7,7 @@ import ManagerPageShell from '../../components/manager/ManagerPageShell';
 import ManagerCrudTable from '../../components/manager/ManagerCrudTable';
 import { InventoryStatusPill } from '../../components/manager/ManagerBadges';
 import { createManagerMaterial, deleteManagerMaterial, getInventoryStatus, listManagerMaterials, updateManagerMaterial } from '../../services/manager.service';
+import { getApiErrorMessage } from '../../services/error';
 import type { ManagerMaterial, MaterialPayload } from '../../types/manager';
 import { formatDate, formatNumber } from '../../utils/formatter';
 
@@ -19,21 +20,22 @@ export default function Materials() {
   const [mode, setMode] = useState<'add' | 'edit' | 'detail' | 'delete' | null>(null);
   const [selected, setSelected] = useState<ManagerMaterial | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState({ open: false, tone: 'success' as ToastTone, title: '', message: '' });
 
-  const showToast = (tone: ToastTone, title: string, message: string) => {
+  const showToast = useCallback((tone: ToastTone, title: string, message: string) => {
     setToast({ open: true, tone, title, message });
     window.setTimeout(() => setToast((current) => ({ ...current, open: false })), 2300);
-  };
+  }, []);
 
-  const loadMaterials = async () => {
+  const loadMaterials = useCallback(async () => {
     const response = await listManagerMaterials();
     setMaterials(response.data);
-  };
+  }, []);
 
   useEffect(() => {
     void loadMaterials();
-  }, []);
+  }, [loadMaterials]);
 
   const filtered = useMemo(() => materials.filter((item) => [item.id, item.name, item.supplierName, getInventoryStatus(item.stock, item.minStock)].join(' ').toLowerCase().includes(search.toLowerCase())), [materials, search]);
   const lowStock = materials.filter((item) => getInventoryStatus(item.stock, item.minStock) !== 'AMAN').length;
@@ -66,24 +68,41 @@ export default function Materials() {
       showToast('error', 'Data bahan belum valid', 'Nama, satuan, stok, dan minimum stok wajib diisi dengan benar.');
       return;
     }
-    if (mode === 'add') {
-      await createManagerMaterial(payload);
-      showToast('success', 'Bahan ditambahkan', `${payload.name} berhasil masuk ke master bahan baku.`);
+
+    setSubmitting(true);
+    try {
+      if (mode === 'add') {
+        await createManagerMaterial(payload);
+        showToast('success', 'Bahan ditambahkan', `${payload.name} berhasil masuk ke master bahan baku.`);
+      }
+
+      if (mode === 'edit' && selected) {
+        await updateManagerMaterial(selected.id, payload);
+        showToast('success', 'Bahan diperbarui', `${payload.name} berhasil diperbarui.`);
+      }
+
+      closeModal();
+      await loadMaterials();
+    } catch (error) {
+      showToast('error', 'Simpan bahan gagal', getApiErrorMessage(error));
+    } finally {
+      setSubmitting(false);
     }
-    if (mode === 'edit' && selected) {
-      await updateManagerMaterial(selected.id, payload);
-      showToast('success', 'Bahan diperbarui', `${payload.name} berhasil diperbarui.`);
-    }
-    closeModal();
-    await loadMaterials();
   };
 
   const handleDelete = async () => {
     if (!selected) return;
-    await deleteManagerMaterial(selected.id);
-    showToast('success', 'Bahan dihapus', `${selected.name} berhasil dihapus dari master bahan baku.`);
-    closeModal();
-    await loadMaterials();
+    setSubmitting(true);
+    try {
+      await deleteManagerMaterial(selected.id);
+      showToast('success', 'Bahan dihapus', `${selected.name} berhasil dihapus dari master bahan baku.`);
+      closeModal();
+      await loadMaterials();
+    } catch (error) {
+      showToast('error', 'Gagal menghapus bahan', getApiErrorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -211,8 +230,8 @@ export default function Materials() {
               placeholder="Minimum stok"
             />
           </div>
-          <Button onClick={() => void handleSubmit()} className="w-full">
-            {mode === 'add' ? 'Simpan Bahan' : 'Simpan Perubahan'}
+          <Button onClick={() => void handleSubmit()} className="w-full" disabled={submitting}>
+            {submitting ? 'Menyimpan...' : mode === 'add' ? 'Simpan Bahan' : 'Simpan Perubahan'}
           </Button>
         </div>
       </Modal>
@@ -241,11 +260,11 @@ export default function Materials() {
           Yakin ingin menghapus <span className="font-semibold text-white">{selected?.name}</span>? Dummy ini juga akan membersihkan bahan tersebut dari recipe yang terhubung.
         </p>
         <div className="mt-5 flex gap-3">
-          <Button variant="ghost" className="flex-1" onClick={closeModal}>
+          <Button variant="ghost" className="flex-1" onClick={closeModal} disabled={submitting}>
             Batal
           </Button>
-          <Button variant="danger" className="flex-1" onClick={() => void handleDelete()}>
-            Hapus
+          <Button variant="danger" className="flex-1" onClick={() => void handleDelete()} disabled={submitting}>
+            {submitting ? 'Menghapus...' : 'Hapus'}
           </Button>
         </div>
       </Modal>

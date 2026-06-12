@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Edit, Eye, Power, Trash2, UserPlus } from "lucide-react";
 import Button from "../../components/common/Button";
 import Modal from "../../components/common/Modal";
@@ -7,6 +7,7 @@ import ManagerPageShell from "../../components/manager/ManagerPageShell";
 import ManagerCrudTable from "../../components/manager/ManagerCrudTable";
 import { RolePill, UserStatusPill } from "../../components/manager/ManagerBadges";
 import { createManagerUser, deleteManagerUser, listManagerUsers, updateManagerUser } from "../../services/manager.service";
+import { getApiErrorMessage } from "../../services/error";
 import type { ManagerSystemUser, SystemRole, SystemUserStatus, UserPayload } from "../../types/manager";
 import { formatDate, formatNumber } from "../../utils/formatter";
 
@@ -18,19 +19,20 @@ export default function Users() {
   const [mode, setMode] = useState<"add" | "edit" | "detail" | "delete" | null>(null);
   const [selected, setSelected] = useState<ManagerSystemUser | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState({ open: false, tone: "success" as ToastTone, title: "", message: "" });
 
-  const showToast = (tone: ToastTone, title: string, message: string) => {
+  const showToast = useCallback((tone: ToastTone, title: string, message: string) => {
     setToast({ open: true, tone, title, message });
     window.setTimeout(() => setToast((current) => ({ ...current, open: false })), 2300);
-  };
+  }, []);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     const response = await listManagerUsers();
     setUsers(response.data);
-  };
+  }, []);
 
-  useEffect(() => { void loadUsers(); }, []);
+  useEffect(() => { void loadUsers(); }, [loadUsers]);
 
   const filtered = useMemo(() => users.filter((item) => [item.id, item.name, item.email, item.phone, item.role, item.status].join(" ").toLowerCase().includes(search.toLowerCase())), [users, search]);
   const activeCount = users.filter((item) => item.status === "ACTIVE").length;
@@ -53,31 +55,52 @@ export default function Users() {
       showToast("error", "Data user belum valid", "Nama, email, role, status, dan password minimal 3 karakter untuk user baru wajib diisi.");
       return;
     }
-    if (mode === "add") {
-      await createManagerUser(payload);
-      showToast("success", "User ditambahkan", `${payload.name} berhasil masuk ke sistem.`);
+
+    setSubmitting(true);
+    try {
+      if (mode === "add") {
+        await createManagerUser(payload);
+        showToast("success", "User ditambahkan", `${payload.name} berhasil masuk ke sistem.`);
+      }
+
+      if (mode === "edit" && selected) {
+        await updateManagerUser(selected.id, payload);
+        showToast("success", "User diperbarui", `${payload.name} berhasil diperbarui.`);
+      }
+
+      closeModal();
+      await loadUsers();
+    } catch (error) {
+      showToast("error", "Simpan user gagal", getApiErrorMessage(error));
+    } finally {
+      setSubmitting(false);
     }
-    if (mode === "edit" && selected) {
-      await updateManagerUser(selected.id, payload);
-      showToast("success", "User diperbarui", `${payload.name} berhasil diperbarui.`);
-    }
-    closeModal();
-    await loadUsers();
   };
 
   const toggleStatus = async (item: ManagerSystemUser) => {
     const nextStatus: SystemUserStatus = item.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
-    await updateManagerUser(item.id, { name: item.name, email: item.email, phone: item.phone || "", role: item.role, status: nextStatus });
-    showToast("success", "Status diperbarui", `${item.name} sekarang ${nextStatus === "ACTIVE" ? "aktif" : "nonaktif"}.`);
-    await loadUsers();
+    try {
+      await updateManagerUser(item.id, { name: item.name, email: item.email, phone: item.phone || "", role: item.role, status: nextStatus });
+      showToast("success", "Status diperbarui", `${item.name} sekarang ${nextStatus === "ACTIVE" ? "aktif" : "nonaktif"}.`);
+      await loadUsers();
+    } catch (error) {
+      showToast("error", "Gagal memperbarui status", getApiErrorMessage(error));
+    }
   };
 
   const handleDelete = async () => {
     if (!selected) return;
-    await deleteManagerUser(selected.id);
-    showToast("success", "User dihapus", `${selected.name} berhasil dihapus dari daftar pengguna.`);
-    closeModal();
-    await loadUsers();
+    setSubmitting(true);
+    try {
+      await deleteManagerUser(selected.id);
+      showToast("success", "User dihapus", `${selected.name} berhasil dihapus dari daftar pengguna.`);
+      closeModal();
+      await loadUsers();
+    } catch (error) {
+      showToast("error", "Gagal menghapus user", getApiErrorMessage(error));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -125,7 +148,7 @@ export default function Users() {
             <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as SystemUserStatus }))} className="rounded-xl border border-white/10 bg-dark px-4 py-3 text-sm text-white outline-none focus:border-primary"><option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option></select>
           </div>
           {mode === "add" && <input value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} type="password" className="w-full rounded-xl border border-white/10 bg-dark px-4 py-3 text-sm text-white outline-none focus:border-primary" placeholder="Password awal" />}
-          <Button onClick={() => void handleSubmit()} className="w-full">{mode === "add" ? "Simpan User" : "Simpan Perubahan"}</Button>
+          <Button onClick={() => void handleSubmit()} className="w-full" disabled={submitting}>{submitting ? "Menyimpan..." : mode === "add" ? "Simpan User" : "Simpan Perubahan"}</Button>
         </div>
       </Modal>
 
@@ -135,7 +158,7 @@ export default function Users() {
 
       <Modal open={mode === "delete"} onClose={closeModal} title="Hapus User">
         <p className="text-sm leading-6 text-white/70">Yakin ingin menghapus user <span className="font-semibold text-white">{selected?.name}</span>?</p>
-        <div className="mt-5 flex gap-3"><Button variant="ghost" className="flex-1" onClick={closeModal}>Batal</Button><Button variant="danger" className="flex-1" onClick={() => void handleDelete()}>Hapus</Button></div>
+        <div className="mt-5 flex gap-3"><Button variant="ghost" className="flex-1" onClick={closeModal} disabled={submitting}>Batal</Button><Button variant="danger" className="flex-1" onClick={() => void handleDelete()} disabled={submitting}>{submitting ? "Menghapus..." : "Hapus"}</Button></div>
       </Modal>
     </ManagerPageShell>
   );
