@@ -13,10 +13,7 @@ import { payWithMidtransSnap } from '../../services/midtrans.service';
 import { getApiErrorMessage } from '../../services/error';
 import type { OrderFulfillmentType, OrderPaymentMethod } from '../../types/orders';
 
-const paymentOptions: { id: OrderPaymentMethod; label: string; desc: string; icon: typeof QrCode }[] = [
-  { id: 'QRIS', label: 'QRIS', desc: 'Bayar melalui Midtrans Snap QRIS.', icon: QrCode },
-  { id: 'TRANSFER', label: 'Transfer', desc: 'Bayar melalui Midtrans Snap bank transfer.', icon: CreditCard },
-];
+const paymentOptions: { id: OrderPaymentMethod; label: string; desc: string; icon: typeof QrCode }[] = [{ id: 'QRIS', label: 'QRIS', desc: 'Bayar melalui Midtrans Snap QRIS.', icon: QrCode }];
 
 function readSavedProfile() {
   const raw = localStorage.getItem('beard-papas-customer-profile') || localStorage.getItem('bread-papa-customer-profile');
