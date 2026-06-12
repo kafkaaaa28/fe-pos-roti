@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CreditCard, MapPin, QrCode, ShoppingBag, StickyNote, User, Phone } from 'lucide-react';
+import { MapPin, QrCode, ShoppingBag, StickyNote, User, Phone } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import CustomerShell from '../../components/customer/CustomerShell';
 import Toast from '../../components/common/Toast';

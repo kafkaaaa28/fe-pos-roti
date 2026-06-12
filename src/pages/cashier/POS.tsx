@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Banknote, Camera, CreditCard, Minus, Phone, Plus, Printer, QrCode, Receipt, Search, Send, ShoppingCart, StickyNote, Trash2, User, UserRoundCheck, X } from 'lucide-react';
+import { Banknote, Camera, Minus, Phone, Plus, Printer, QrCode, Receipt, Search, Send, ShoppingCart, StickyNote, Trash2, User, UserRoundCheck, X } from 'lucide-react';
 import Sidebar from '../../components/layout/Sidebar';
 import Modal from '../../components/common/Modal';
 import Toast from '../../components/common/Toast';
