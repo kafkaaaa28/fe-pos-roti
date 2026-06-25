@@ -21,8 +21,9 @@ const brand = {
   danger: "#B91C1C",
 };
 
-const headers = ["No", "Kode", "Nama", "Email", "No HP", "Role", "Status", "Dibuat", "Diperbarui"];
-const columnWidths = [28, 72, 120, 180, 100, 80, 82, 120, 120];
+// Kolom inti dibuat lebih ringkas agar identitas pengguna terbaca jelas pada Excel dan PDF.
+const headers = ["No", "Nama", "Email", "No HP", "Role"];
+const columnWidths = [36, 170, 260, 160, 150];
 
 const formatFileDate = () => {
   const now = new Date();
@@ -68,18 +69,12 @@ const summaryRows = (users: ManagerSystemUser[]): Array<[string, number]> => [
   ["Customer", users.filter((item) => item.role === "CUSTOMER").length],
 ];
 
-const displayStatus = (status: ManagerSystemUser["status"]) => (status === "ACTIVE" ? "Aktif" : "Nonaktif");
-
 const dataRows = (users: ManagerSystemUser[]) => users.map((item, index) => [
   index + 1,
-  item.id,
-  item.name,
-  item.email,
-  item.phone || "-",
+  item.name.trim() || "-",
+  item.email.trim() || "-",
+  item.phone?.trim() || "-",
   item.role,
-  displayStatus(item.status),
-  formatDate(item.createdAt),
-  formatDate(item.updatedAt),
 ]);
 
 const excelCell = (value: string | number, style = "Cell", type?: "String" | "Number") =>
@@ -104,12 +99,10 @@ const excelDocument = (users: ManagerSystemUser[], filterLabel: string, generate
     excelRow([`<Cell ss:MergeAcross="${mergeAcross}"><Data ss:Type="String"></Data></Cell>`], 8),
     excelRow([`<Cell ss:StyleID="Section" ss:MergeAcross="${mergeAcross}"><Data ss:Type="String">Detail Pengguna</Data></Cell>`], 23),
     excelRow(headers.map((header) => excelCell(header, "Header"))),
-    ...rows.map((items, rowIndex) => excelRow(items.map((value, columnIndex) => {
-      const isStatus = columnIndex === 6;
-      const baseStyle = rowIndex % 2 ? "CellAlt" : "Cell";
-      const style = isStatus
-        ? value === "Aktif" ? "Active" : "Inactive"
-        : typeof value === "number" ? rowIndex % 2 ? "NumberAlt" : "Number" : baseStyle;
+    ...rows.map((items, rowIndex) => excelRow(items.map((value) => {
+      const style = typeof value === "number"
+        ? rowIndex % 2 ? "NumberAlt" : "Number"
+        : rowIndex % 2 ? "CellAlt" : "Cell";
       return excelCell(value, style);
     }))),
   ].join("");
@@ -217,9 +210,8 @@ const pdfDocument = (users: ManagerSystemUser[], filterLabel: string, generatedA
     if (rowIndex % 2 === 0) rect(margin, y - 11, tableWidth, 17, "#FFF7E6");
     let x = margin;
     row.forEach((value, columnIndex) => {
-      const maxLength = [3, 12, 21, 28, 16, 10, 11, 19, 19][columnIndex];
-      const statusColor = columnIndex === 6 && value === "Aktif" ? brand.success : columnIndex === 6 ? brand.danger : brand.dark;
-      text(truncate(value, maxLength), x + 3, 6.5, columnIndex === 1 ? "F2" : "F1", statusColor);
+      const maxLength = [3, 28, 44, 22, 18][columnIndex];
+      text(truncate(value, maxLength), x + 3, 7, columnIndex === 1 ? "F2" : "F1", brand.dark);
       x += columnWidths[columnIndex];
     });
     y -= 17;
@@ -266,9 +258,9 @@ export const exportUserFile = ({ users, format, filterLabel = "Semua pengguna" }
 
   if (format === "excel") {
     triggerDownload(new Blob([excelDocument(users, filterLabel, generatedAt)], { type: "application/vnd.ms-excel;charset=utf-8" }), fileName);
-    return { fileName, message: `Excel berisi ${formatNumber(users.length)} pengguna, ringkasan, dan detail akun.` };
+    return { fileName, message: `Excel berisi ${formatNumber(users.length)} pengguna dengan nama, email, nomor HP, dan role.` };
   }
 
   triggerDownload(new Blob([pdfDocument(users, filterLabel, generatedAt)], { type: "application/pdf" }), fileName);
-  return { fileName, message: `PDF berisi ${formatNumber(users.length)} pengguna, ringkasan, dan detail akun.` };
+  return { fileName, message: `PDF berisi ${formatNumber(users.length)} pengguna dengan nama, email, nomor HP, dan role.` };
 };

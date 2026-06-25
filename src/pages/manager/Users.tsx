@@ -164,7 +164,7 @@ export default function Users() {
             >
               <FileSpreadsheet className="text-emerald-300" size={24} />
               <p className="mt-3 font-semibold text-white">Excel (.xls)</p>
-              <p className="mt-1 text-xs leading-5 text-white/45">Tabel rapi dengan ringkasan akun, warna status, dan data lengkap pengguna.</p>
+              <p className="mt-1 text-xs leading-5 text-white/45">Tabel rapi berisi nama, email, nomor HP, dan role setiap pengguna.</p>
             </button>
 
             <button
@@ -174,7 +174,7 @@ export default function Users() {
             >
               <FileText className="text-red-300" size={24} />
               <p className="mt-3 font-semibold text-white">PDF (.pdf)</p>
-              <p className="mt-1 text-xs leading-5 text-white/45">Format formal dengan header, ringkasan, tabel pengguna, dan nomor halaman.</p>
+              <p className="mt-1 text-xs leading-5 text-white/45">Format formal berisi nama, email, nomor HP, role, ringkasan, dan nomor halaman.</p>
             </button>
           </div>
 
