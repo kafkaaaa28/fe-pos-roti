@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Edit, Eye, Power, Trash2, UserPlus } from "lucide-react";
+import { Download, Edit, Eye, FileSpreadsheet, FileText, Power, Trash2, UserPlus } from "lucide-react";
 import Button from "../../components/common/Button";
 import Modal from "../../components/common/Modal";
 import Toast, { type ToastTone } from "../../components/common/Toast";
@@ -10,6 +10,7 @@ import { createManagerUser, deleteManagerUser, listManagerUsers, updateManagerUs
 import { getApiErrorMessage } from "../../services/error";
 import type { ManagerSystemUser, SystemRole, SystemUserStatus, UserPayload } from "../../types/manager";
 import { formatDate, formatNumber } from "../../utils/formatter";
+import { exportUserFile, type UserExportFormat } from "../../utils/userExport";
 
 const EMPTY_FORM = { name: "", email: "", phone: "", role: "STAFF" as SystemRole, status: "ACTIVE" as SystemUserStatus, password: "" };
 
@@ -20,6 +21,8 @@ export default function Users() {
   const [selected, setSelected] = useState<ManagerSystemUser | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<UserExportFormat>("excel");
   const [toast, setToast] = useState({ open: false, tone: "success" as ToastTone, title: "", message: "" });
 
   const showToast = useCallback((tone: ToastTone, title: string, message: string) => {
@@ -104,12 +107,31 @@ export default function Users() {
     }
   };
 
+  const handleExport = (format: UserExportFormat) => {
+    if (!filtered.length) {
+      showToast("error", "Data tidak dapat diunduh", "Tidak ada pengguna yang sesuai dengan pencarian saat ini.");
+      return;
+    }
+
+    const filterLabel = search.trim() ? `Pencarian: ${search.trim()}` : "Semua pengguna";
+    const result = exportUserFile({ users: filtered, format, filterLabel });
+    setExportOpen(false);
+    showToast("success", "Download berhasil", `${format.toUpperCase()} berhasil dibuat: ${result.fileName}`);
+  };
+
   return (
     <ManagerPageShell
       title="User Management"
       subtitle="Kelola seluruh akun sistem: Manager, Staff, Kasir, dan Customer. Data phone ikut dikirim ke backend agar daftar user management konsisten dengan database."
       badge="Manager • Kelola User"
-      action={<Button onClick={openAdd} className="inline-flex items-center gap-2"><UserPlus size={16} /> Tambah User</Button>}
+      action={
+        <div className="flex flex-wrap gap-3">
+          <Button variant="ghost" onClick={() => setExportOpen(true)} className="inline-flex items-center gap-2">
+            <Download size={16} /> Download
+          </Button>
+          <Button onClick={openAdd} className="inline-flex items-center gap-2"><UserPlus size={16} /> Tambah User</Button>
+        </div>
+      }
     >
       <Toast open={toast.open} tone={toast.tone} title={toast.title} message={toast.message} />
 
@@ -124,6 +146,46 @@ export default function Users() {
       <div className="mb-5 rounded-2xl border border-white/10 bg-surface p-4">
         <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari nama, email, role, atau status..." className="w-full max-w-md rounded-xl border border-white/10 bg-dark px-4 py-2.5 text-sm text-white outline-none focus:border-primary" />
       </div>
+
+      <Modal open={exportOpen} onClose={() => setExportOpen(false)} title="Download Daftar Pengguna" size="lg">
+        <div className="space-y-5">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-sm font-semibold text-white">Pilih format file</p>
+            <p className="mt-1 text-sm leading-6 text-white/45">
+              Data unduhan mengikuti hasil pencarian yang sedang tampil, yaitu <strong>{formatNumber(filtered.length)} pengguna</strong>.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setExportFormat("excel")}
+              className={`rounded-2xl border p-4 text-left transition-all ${exportFormat === "excel" ? "border-emerald-400/60 bg-emerald-400/10" : "border-white/10 bg-white/[0.03] hover:border-emerald-400/40"}`}
+            >
+              <FileSpreadsheet className="text-emerald-300" size={24} />
+              <p className="mt-3 font-semibold text-white">Excel (.xls)</p>
+              <p className="mt-1 text-xs leading-5 text-white/45">Tabel rapi dengan ringkasan akun, warna status, dan data lengkap pengguna.</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setExportFormat("pdf")}
+              className={`rounded-2xl border p-4 text-left transition-all ${exportFormat === "pdf" ? "border-red-400/60 bg-red-400/10" : "border-white/10 bg-white/[0.03] hover:border-red-400/40"}`}
+            >
+              <FileText className="text-red-300" size={24} />
+              <p className="mt-3 font-semibold text-white">PDF (.pdf)</p>
+              <p className="mt-1 text-xs leading-5 text-white/45">Format formal dengan header, ringkasan, tabel pengguna, dan nomor halaman.</p>
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button variant="ghost" className="flex-1" onClick={() => setExportOpen(false)}>Batal</Button>
+            <Button variant="accent" className="flex-1 inline-flex items-center justify-center gap-2" onClick={() => handleExport(exportFormat)}>
+              <Download size={16} /> Download {exportFormat.toUpperCase()}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <ManagerCrudTable headers={["Kode", "Nama", "Email", "No HP", "Role", "Status", "Update", "Aksi"]} empty={filtered.length === 0}>
         {filtered.map((item, index) => (
