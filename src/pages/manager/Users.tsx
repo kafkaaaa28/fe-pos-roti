@@ -116,7 +116,7 @@ export default function Users() {
     const filterLabel = search.trim() ? `Pencarian: ${search.trim()}` : "Semua pengguna";
     const result = exportUserFile({ users: filtered, format, filterLabel });
     setExportOpen(false);
-    showToast("success", "Download berhasil", `${format.toUpperCase()} berhasil dibuat: ${result.fileName}`);
+    showToast("success", "Download berhasil", `${result.message} File: ${result.fileName}`);
   };
 
   return (
@@ -164,7 +164,7 @@ export default function Users() {
             >
               <FileSpreadsheet className="text-emerald-300" size={24} />
               <p className="mt-3 font-semibold text-white">Excel (.xls)</p>
-              <p className="mt-1 text-xs leading-5 text-white/45">Tabel rapi berisi nama, email, nomor HP, dan role setiap pengguna.</p>
+              <p className="mt-1 text-xs leading-5 text-white/45">Sheet terpisah untuk semua akun, setiap role, dan akun nonaktif. Tidak ada panel yang dikunci saat digulir.</p>
             </button>
 
             <button
@@ -174,7 +174,7 @@ export default function Users() {
             >
               <FileText className="text-red-300" size={24} />
               <p className="mt-3 font-semibold text-white">PDF (.pdf)</p>
-              <p className="mt-1 text-xs leading-5 text-white/45">Format formal berisi nama, email, nomor HP, role, ringkasan, dan nomor halaman.</p>
+              <p className="mt-1 text-xs leading-5 text-white/45">Format formal dengan tabel akun aktif dan tabel khusus akun nonaktif.</p>
             </button>
           </div>
 

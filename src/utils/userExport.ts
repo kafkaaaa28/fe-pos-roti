@@ -1,4 +1,4 @@
-import type { ManagerSystemUser } from "../types/manager";
+import type { ManagerSystemUser, SystemRole } from "../types/manager";
 import { formatDate, formatNumber } from "./formatter";
 
 export type UserExportFormat = "excel" | "pdf";
@@ -21,9 +21,14 @@ const brand = {
   danger: "#B91C1C",
 };
 
-// Kolom inti dibuat lebih ringkas agar identitas pengguna terbaca jelas pada Excel dan PDF.
-const headers = ["No", "Nama", "Email", "No HP", "Role"];
-const columnWidths = [36, 170, 260, 160, 150];
+const headers = ["No", "Nama", "Email", "No HP", "Role", "Status"];
+const columnWidths = [36, 150, 250, 135, 120, 95];
+const roleSheets: Array<{ role: SystemRole; sheetName: string; title: string }> = [
+  { role: "MANAGER", sheetName: "Role Manager", title: "LAPORAN PENGGUNA ROLE MANAGER" },
+  { role: "STAFF", sheetName: "Role Staff", title: "LAPORAN PENGGUNA ROLE STAFF" },
+  { role: "KASIR", sheetName: "Role Kasir", title: "LAPORAN PENGGUNA ROLE KASIR" },
+  { role: "CUSTOMER", sheetName: "Role Customer", title: "LAPORAN PENGGUNA ROLE CUSTOMER" },
+];
 
 const formatFileDate = () => {
   const now = new Date();
@@ -69,43 +74,118 @@ const summaryRows = (users: ManagerSystemUser[]): Array<[string, number]> => [
   ["Customer", users.filter((item) => item.role === "CUSTOMER").length],
 ];
 
-const dataRows = (users: ManagerSystemUser[]) => users.map((item, index) => [
+const userRow = (item: ManagerSystemUser, index: number): Array<string | number> => [
   index + 1,
   item.name.trim() || "-",
   item.email.trim() || "-",
   item.phone?.trim() || "-",
   item.role,
-]);
+  item.status === "ACTIVE" ? "Aktif" : "Nonaktif",
+];
 
 const excelCell = (value: string | number, style = "Cell", type?: "String" | "Number") =>
   `<Cell ss:StyleID="${style}"><Data ss:Type="${type ?? (typeof value === "number" ? "Number" : "String")}">${escapeXml(value)}</Data></Cell>`;
 
 const excelRow = (cells: string[], height?: number) => `<Row${height ? ` ss:Height="${height}"` : ""}>${cells.join("")}</Row>`;
 
-const excelDocument = (users: ManagerSystemUser[], filterLabel: string, generatedAt: string) => {
-  const summary = summaryRows(users);
-  const rows = dataRows(users);
+const excelUserRows = (users: ManagerSystemUser[]) => users.map((item, rowIndex) => {
+  const values = userRow(item, rowIndex);
+  return excelRow(values.map((value, columnIndex) => {
+    if (columnIndex === headers.length - 1) {
+      return excelCell(value, item.status === "ACTIVE" ? "Active" : "Inactive");
+    }
+
+    const style = typeof value === "number"
+      ? rowIndex % 2 ? "NumberAlt" : "Number"
+      : rowIndex % 2 ? "CellAlt" : "Cell";
+    return excelCell(value, style);
+  }));
+});
+
+const excelWorksheet = ({
+  sheetName,
+  title,
+  users,
+  filterLabel,
+  generatedAt,
+  includeSummary = false,
+  emptyMessage,
+}: {
+  sheetName: string;
+  title: string;
+  users: ManagerSystemUser[];
+  filterLabel: string;
+  generatedAt: string;
+  includeSummary?: boolean;
+  emptyMessage: string;
+}) => {
   const mergeAcross = headers.length - 1;
-  const tableRows = [
-    excelRow([`<Cell ss:StyleID="Title" ss:MergeAcross="${mergeAcross}"><Data ss:Type="String">DAFTAR PENGGUNA SISTEM</Data></Cell>`], 30),
+  const rows: string[] = [
+    excelRow([`<Cell ss:StyleID="Title" ss:MergeAcross="${mergeAcross}"><Data ss:Type="String">${escapeXml(title)}</Data></Cell>`], 30),
     excelRow([`<Cell ss:StyleID="Subtitle" ss:MergeAcross="${mergeAcross}"><Data ss:Type="String">${escapeXml(`Filter: ${filterLabel} | Diekspor: ${formatDate(generatedAt)}`)}</Data></Cell>`], 22),
-    excelRow([`<Cell ss:MergeAcross="${mergeAcross}"><Data ss:Type="String"></Data></Cell>`], 8),
-    excelRow([`<Cell ss:StyleID="Section" ss:MergeAcross="${mergeAcross}"><Data ss:Type="String">Ringkasan Pengguna</Data></Cell>`], 23),
-    excelRow([excelCell("Indikator", "Header"), excelCell("Jumlah", "Header")]),
-    ...summary.map(([label, value], index) => excelRow([
-      excelCell(label, index % 2 ? "CellAlt" : "Cell"),
-      excelCell(value, index % 2 ? "NumberAlt" : "Number"),
-    ])),
-    excelRow([`<Cell ss:MergeAcross="${mergeAcross}"><Data ss:Type="String"></Data></Cell>`], 8),
+    excelRow([`<Cell ss:StyleID="Section" ss:MergeAcross="${mergeAcross}"><Data ss:Type="String">${escapeXml(`Jumlah data: ${formatNumber(users.length)}`)}</Data></Cell>`], 23),
+  ];
+
+  if (includeSummary) {
+    rows.push(
+      excelRow([excelCell("Ringkasan Pengguna", "Header"), excelCell("Jumlah", "Header")]),
+      ...summaryRows(users).map(([label, value], index) => excelRow([
+        excelCell(label, index % 2 ? "CellAlt" : "Cell"),
+        excelCell(value, index % 2 ? "NumberAlt" : "Number"),
+      ])),
+      excelRow([`<Cell ss:MergeAcross="${mergeAcross}"><Data ss:Type="String"></Data></Cell>`], 8),
+    );
+  }
+
+  rows.push(
     excelRow([`<Cell ss:StyleID="Section" ss:MergeAcross="${mergeAcross}"><Data ss:Type="String">Detail Pengguna</Data></Cell>`], 23),
     excelRow(headers.map((header) => excelCell(header, "Header"))),
-    ...rows.map((items, rowIndex) => excelRow(items.map((value) => {
-      const style = typeof value === "number"
-        ? rowIndex % 2 ? "NumberAlt" : "Number"
-        : rowIndex % 2 ? "CellAlt" : "Cell";
-      return excelCell(value, style);
-    }))),
-  ].join("");
+  );
+
+  if (users.length) {
+    rows.push(...excelUserRows(users));
+  } else {
+    rows.push(excelRow([`<Cell ss:StyleID="Empty" ss:MergeAcross="${mergeAcross}"><Data ss:Type="String">${escapeXml(emptyMessage)}</Data></Cell>`], 22));
+  }
+
+  return `
+  <Worksheet ss:Name="${escapeXml(sheetName)}">
+    <Table>
+      ${columnWidths.map((width) => `<Column ss:Width="${width}"/>`).join("")}
+      ${rows.join("")}
+    </Table>
+  </Worksheet>`;
+};
+
+const excelDocument = (users: ManagerSystemUser[], filterLabel: string, generatedAt: string) => {
+  const inactiveUsers = users.filter((item) => item.status === "INACTIVE");
+  const worksheets = [
+    excelWorksheet({
+      sheetName: "Semua Akun",
+      title: "LAPORAN SEMUA PENGGUNA",
+      users,
+      filterLabel,
+      generatedAt,
+      includeSummary: true,
+      emptyMessage: "Tidak ada data pengguna untuk ditampilkan.",
+    }),
+    ...roleSheets.map(({ role, sheetName, title }) => excelWorksheet({
+      sheetName,
+      title,
+      users: users.filter((item) => item.role === role),
+      filterLabel,
+      generatedAt,
+      emptyMessage: `Tidak ada pengguna dengan role ${role}.`,
+    })),
+    excelWorksheet({
+      sheetName: "Akun Nonaktif",
+      title: "LAPORAN AKUN NONAKTIF",
+      users: inactiveUsers,
+      filterLabel,
+      generatedAt,
+      emptyMessage: "Tidak ada akun nonaktif.",
+    }),
+  ];
 
   return `<?xml version="1.0"?>
 <?mso-application progid="Excel.Sheet"?>
@@ -120,16 +200,11 @@ const excelDocument = (users: ManagerSystemUser[], filterLabel: string, generate
     <Style ss:ID="CellAlt"><Alignment ss:Vertical="Center" ss:WrapText="1"/><Interior ss:Color="#FFF7E6" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/></Borders></Style>
     <Style ss:ID="Number"><NumberFormat ss:Format="#,##0"/><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/></Borders></Style>
     <Style ss:ID="NumberAlt"><NumberFormat ss:Format="#,##0"/><Alignment ss:Horizontal="Right" ss:Vertical="Center"/><Interior ss:Color="#FFF7E6" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/></Borders></Style>
-    <Style ss:ID="Active"><Font ss:Color="${brand.success}" ss:Bold="1"/><Interior ss:Color="#DCFCE7" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/></Borders></Style>
-    <Style ss:ID="Inactive"><Font ss:Color="${brand.danger}" ss:Bold="1"/><Interior ss:Color="#FEE2E2" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/></Borders></Style>
+    <Style ss:ID="Active"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Color="${brand.success}" ss:Bold="1"/><Interior ss:Color="#DCFCE7" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/></Borders></Style>
+    <Style ss:ID="Inactive"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Color="${brand.danger}" ss:Bold="1"/><Interior ss:Color="#FEE2E2" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/></Borders></Style>
+    <Style ss:ID="Empty"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:Italic="1" ss:Color="${brand.muted}"/><Interior ss:Color="#FFF7E6" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="${brand.line}"/></Borders></Style>
   </Styles>
-  <Worksheet ss:Name="Daftar Pengguna">
-    <Table>
-      ${columnWidths.map((width) => `<Column ss:Width="${width}"/>`).join("")}
-      ${tableRows}
-    </Table>
-    <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><FreezePanes/><FrozenNoSplit/><SplitHorizontal>12</SplitHorizontal><TopRowBottomPane>12</TopRowBottomPane></WorksheetOptions>
-  </Worksheet>
+  ${worksheets.join("\n")}
 </Workbook>`;
 };
 
@@ -166,7 +241,7 @@ const pdfDocument = (users: ManagerSystemUser[], filterLabel: string, generatedA
   const drawHeader = () => {
     rect(0, pageHeight - 78, pageWidth, 78, brand.primary);
     y = pageHeight - 31;
-    text("DAFTAR PENGGUNA SISTEM", margin, 17, "F2", "#FFFFFF");
+    text("LAPORAN PENGGUNA SISTEM", margin, 17, "F2", "#FFFFFF");
     y -= 18;
     text(`Filter: ${filterLabel} | Diekspor: ${formatDate(generatedAt)}`, margin, 8.5, "F1", brand.cream);
     y = pageHeight - 98;
@@ -188,34 +263,57 @@ const pdfDocument = (users: ManagerSystemUser[], filterLabel: string, generatedA
     y -= 21;
   };
 
-  nextPage();
-  const summary = summaryRows(users);
-  text("Ringkasan", margin, 11, "F2", brand.primary);
-  y -= 16;
-  const summaryText = summary.map(([label, value]) => `${label}: ${formatNumber(value)}`).join("  |  ");
-  text(summaryText, margin, 7.5, "F1", brand.muted);
-  y -= 26;
-  text("Detail Pengguna", margin, 11, "F2", brand.primary);
-  y -= 17;
-  drawTableHeader();
+  const drawRows = (sectionTitle: string, sectionUsers: ManagerSystemUser[], emptyMessage: string) => {
+    if (y < 93) nextPage();
 
-  dataRows(users).forEach((row, rowIndex) => {
-    if (y < 48) {
-      nextPage();
-      text("Detail Pengguna (lanjutan)", margin, 10, "F2", brand.primary);
-      y -= 16;
-      drawTableHeader();
+    text(sectionTitle, margin, 11, "F2", brand.primary);
+    y -= 17;
+    drawTableHeader();
+
+    if (!sectionUsers.length) {
+      text(emptyMessage, margin + 3, 7.5, "F1", brand.muted);
+      y -= 20;
+      return;
     }
 
-    if (rowIndex % 2 === 0) rect(margin, y - 11, tableWidth, 17, "#FFF7E6");
-    let x = margin;
-    row.forEach((value, columnIndex) => {
-      const maxLength = [3, 28, 44, 22, 18][columnIndex];
-      text(truncate(value, maxLength), x + 3, 7, columnIndex === 1 ? "F2" : "F1", brand.dark);
-      x += columnWidths[columnIndex];
+    sectionUsers.forEach((item, rowIndex) => {
+      if (y < 48) {
+        nextPage();
+        text(`${sectionTitle} (lanjutan)`, margin, 10, "F2", brand.primary);
+        y -= 16;
+        drawTableHeader();
+      }
+
+      if (rowIndex % 2 === 0) rect(margin, y - 11, tableWidth, 17, "#FFF7E6");
+      let x = margin;
+      userRow(item, rowIndex).forEach((value, columnIndex) => {
+        const maxLength = [3, 24, 40, 20, 15, 12][columnIndex];
+        const color = columnIndex === headers.length - 1
+          ? item.status === "ACTIVE" ? brand.success : brand.danger
+          : brand.dark;
+        text(truncate(value, maxLength), x + 3, 7, columnIndex === 1 ? "F2" : "F1", color);
+        x += columnWidths[columnIndex];
+      });
+      y -= 17;
     });
-    y -= 17;
-  });
+
+    y -= 8;
+  };
+
+  const activeUsers = users.filter((item) => item.status === "ACTIVE");
+  const inactiveUsers = users.filter((item) => item.status === "INACTIVE");
+  const summary = summaryRows(users);
+
+  nextPage();
+  text("Ringkasan", margin, 11, "F2", brand.primary);
+  y -= 16;
+  text(`Total: ${formatNumber(users.length)}  |  Aktif: ${formatNumber(activeUsers.length)}  |  Nonaktif: ${formatNumber(inactiveUsers.length)}`, margin, 7.5, "F1", brand.muted);
+  y -= 13;
+  text(summary.slice(3).map(([label, value]) => `${label}: ${formatNumber(value)}`).join("  |  "), margin, 7.5, "F1", brand.muted);
+  y -= 24;
+
+  drawRows("Daftar Akun Aktif", activeUsers, "Tidak ada akun aktif.");
+  drawRows("Daftar Akun Nonaktif", inactiveUsers, "Tidak ada akun nonaktif.");
 
   pages.push(commands);
 
@@ -254,13 +352,21 @@ const pdfDocument = (users: ManagerSystemUser[], filterLabel: string, generatedA
 
 export const exportUserFile = ({ users, format, filterLabel = "Semua pengguna" }: UserExportPayload) => {
   const generatedAt = new Date().toISOString();
-  const fileName = `daftar-pengguna-${formatFileDate()}.${format === "excel" ? "xls" : "pdf"}`;
+  const fileName = `laporan-pengguna-${formatFileDate()}.${format === "excel" ? "xls" : "pdf"}`;
+  const activeCount = users.filter((item) => item.status === "ACTIVE").length;
+  const inactiveCount = users.length - activeCount;
 
   if (format === "excel") {
     triggerDownload(new Blob([excelDocument(users, filterLabel, generatedAt)], { type: "application/vnd.ms-excel;charset=utf-8" }), fileName);
-    return { fileName, message: `Excel berisi ${formatNumber(users.length)} pengguna dengan nama, email, nomor HP, dan role.` };
+    return {
+      fileName,
+      message: `Excel berisi sheet semua akun, per role, dan akun nonaktif. Aktif: ${formatNumber(activeCount)}, nonaktif: ${formatNumber(inactiveCount)}.`,
+    };
   }
 
   triggerDownload(new Blob([pdfDocument(users, filterLabel, generatedAt)], { type: "application/pdf" }), fileName);
-  return { fileName, message: `PDF berisi ${formatNumber(users.length)} pengguna dengan nama, email, nomor HP, dan role.` };
+  return {
+    fileName,
+    message: `PDF memisahkan tabel akun aktif dan akun nonaktif. Aktif: ${formatNumber(activeCount)}, nonaktif: ${formatNumber(inactiveCount)}.`,
+  };
 };
